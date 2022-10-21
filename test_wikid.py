@@ -10,4 +10,4 @@ from spacy.cli.project.assets import project_assets
 def test_wikid():
     root = Path(__file__).parent
     project_assets(root)
-    project_run(root, "parse_wiki_dumps", capture=True)
+    project_run(root, "parse", capture=True)

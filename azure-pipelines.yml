@@ -34,4 +34,4 @@ jobs:
 
           - task: Bash@3
             inputs:
-              filePath: 'python -m pytest .'
+              filePath: 'python -m pytest'

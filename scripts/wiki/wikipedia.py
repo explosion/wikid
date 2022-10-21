@@ -12,7 +12,7 @@ from typing import Union, Optional, Tuple, List, Dict, Set, Any
 import tqdm
 import yaml
 
-from wiki.namespaces import (
+from .namespaces import (
     WP_META_NAMESPACE,
     WP_FILE_NAMESPACE,
     WP_CATEGORY_NAMESPACE,

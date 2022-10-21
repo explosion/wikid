@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Dict, Optional, Any, Tuple, List, Set
 import pysqlite3 as sqlite3
 
-from schemas import Entity
-from wiki import wikidata, wikipedia
+from ..schemas import Entity
+from . import wikidata
+from . import wikipedia
 
 _assets_dir = Path(os.path.abspath(__file__)).parent.parent.parent / "assets"
 _paths = {

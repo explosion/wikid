@@ -11,7 +11,7 @@ from typing import Union, Optional, Dict, Tuple, Any, List, Set, Iterator
 
 import tqdm
 
-from wiki.namespaces import WD_META_ITEMS
+from .namespaces import WD_META_ITEMS
 
 
 def chunked_readlines(
