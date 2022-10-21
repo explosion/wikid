@@ -1,19 +1,37 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+    batch: true
+    branches:
+        include:
+            - 'main'
 
-pool:
-  vmImage: ubuntu-latest
+variables:
+    WASABI_LOG_FRIENDLY: 1
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+jobs:
+    - job: 'Test'
+      strategy:
+          matrix:
+              Python37Linux:
+                  imageName: 'ubuntu-latest'
+                  python.version: '3.7'
+              Python37Windows:
+                  imageName: 'windows-latest'
+                  python.version: '3.7'
+          maxParallel: 4
+      pool:
+          vmImage: $(imageName)
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+      steps:
+          - task: UsePythonVersion@0
+            inputs:
+                versionSpec: '$(python.version)'
+                architecture: 'x64'
+
+          - script: |
+                pip install pytest
+                pip install wheel
+            displayName: 'Install dependencies'
+
+          - task: Bash@3
+            inputs:
+              filePath: 'python -m pytest .'

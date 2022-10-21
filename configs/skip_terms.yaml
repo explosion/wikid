@@ -1,0 +1,9 @@
+# List of lower-cased terms indicating an article should be skipped in its entirety, by language.
+en:
+  - "#redirection"
+  - "#redirect"
+  - "{{disambiguation}}"
+es:
+  - "#redirect"
+  - "#redirección"
+  - "{{desambiguación}}"

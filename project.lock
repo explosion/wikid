@@ -1,0 +1,10 @@
+parse:
+  cmd: python -m spacy run parse
+  script:
+    - env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py en --use_filtered_dumps
+  deps: []
+  outs:
+    - path: assets/wiki.sqlite3
+      md5: 1ed331fc437638cbfdcdd18987fb376e
+  spacy_version: 3.4.1
+  spacy_git_version: Unknown
