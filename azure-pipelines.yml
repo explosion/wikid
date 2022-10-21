@@ -30,6 +30,8 @@ jobs:
           - script: |
                 pip install pytest
                 pip install wheel
+                pip install -r requirements.txt
             displayName: 'Install dependencies'
 
           - script: 'python -m pytest'
+            displayName: 'Run pytest'
