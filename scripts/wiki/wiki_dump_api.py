@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional, Any, Tuple, List, Set
 import pysqlite3 as sqlite3
 
-from ..schemas import Entity
+from schemas import Entity
 from . import wikidata
 from . import wikipedia
 
