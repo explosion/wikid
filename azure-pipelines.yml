@@ -32,6 +32,4 @@ jobs:
                 pip install wheel
             displayName: 'Install dependencies'
 
-          - task: Bash@3
-            inputs:
-              filePath: 'python -m pytest'
+          - script: 'python -m pytest'

@@ -1,6 +1,9 @@
 title: 'wikid'
 description: |
+  [![Azure Pipelines](https://img.shields.io/azure-devops/build/explosion-ai/public/32/main.svg?logo=azure-pipelines&style=flat-square&label=build)](https://dev.azure.com/explosion-ai/public/_build?definitionId=32)
+  [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
   _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database from Wikipedia & Wikidata dumps.
+
 vars:
   version: "0.0.1"
   language: "en"
