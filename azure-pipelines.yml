@@ -34,4 +34,4 @@ jobs:
             displayName: 'Install dependencies'
 
           - script: "PYTHONPATH=scripts python -m pytest"
-            displayName: "Run pytest'
+            displayName: 'Run pytest'
