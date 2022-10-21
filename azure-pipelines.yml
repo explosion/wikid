@@ -13,10 +13,10 @@ jobs:
           matrix:
               Python37Linux:
                   imageName: 'ubuntu-latest'
-                  python.version: '3.7'
+                  python.version: '3.8'
               Python37Windows:
                   imageName: 'windows-latest'
-                  python.version: '3.7'
+                  python.version: '3.8'
           maxParallel: 4
       pool:
           vmImage: $(imageName)
@@ -31,7 +31,7 @@ jobs:
                 pip install pytest
                 pip install wheel
                 pip install -r requirements.txt
-            displayName: 'Install dependencies'
+              displayName: 'Install dependencies'
 
           - script: 'PYTHONPATH="scripts" python -m pytest'
             displayName: 'Run pytest'

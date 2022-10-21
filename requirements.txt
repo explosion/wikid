@@ -2,4 +2,3 @@ spacy
 pyyaml
 tqdm
 prettytable
-pysqlite3-binary

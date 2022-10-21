@@ -5,6 +5,6 @@ parse:
   deps: []
   outs:
     - path: assets/wiki.sqlite3
-      md5: 47c05bba277320d1621dead5acc173e3
+      md5: c6eede2b56430af60704e7102b2759a5
   spacy_version: 3.4.2
   spacy_git_version: Unknown
