@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Union, Optional, Tuple, List, Dict, Set, Any
 
 import tqdm
+import yaml
 
 from wiki.namespaces import (
     WP_META_NAMESPACE,
@@ -259,6 +260,7 @@ def read_texts(
     batch_size: int = 10000,
     limit: Optional[int] = None,
     n_char_limit: int = 1000,
+    lang: str = "en"
 ) -> None:
     """
     Read the XML Wikipedia data to parse out clean article texts. Texts are stored in file.
@@ -266,6 +268,7 @@ def read_texts(
     db_conn (sqlite3.Connection): DB connection.
     limit (Optional[int]): Max. number of articles to process. If None, all are processed.
     n_char_limit (Optional[int]): Max. number of characters to process per article.
+    lang (str): Language with which to filter entity information.
     """
     read_ids: Set[str] = set()
     entity_title_to_id = _read_entity_title_id_map(db_conn)
@@ -304,7 +307,8 @@ def read_texts(
             # Terms in article indicating it should be skipped (for redirects and disambiguation pages).
             # Note: checks for redirection/disambiguation articles are not language-agnostic. Porting this to the
             # generalized extraction needs to consider that.
-            skip_terms = ("#redirect", "#redirection", "{{disambiguation}}")
+            with open(Path(__file__).parent.parent.parent / "configs" / "skip_terms.yaml", "r") as stream:
+                skip_terms = set(yaml.safe_load(stream)[lang])
             skip_article = False
 
             for line in file:

@@ -47,6 +47,7 @@ def extract_demo_dump(filter_terms: Set[str]) -> None:
 
 
 def parse(
+    language: str,
     db_conn: Optional[sqlite3.Connection] = None,
     entity_config: Optional[Dict[str, Any]] = None,
     article_text_config: Optional[Dict[str, Any]] = None,
@@ -54,6 +55,7 @@ def parse(
     use_filtered_dumps: bool = False
 ) -> None:
     """Parses Wikipedia and Wikidata dumps. Writes parsing results to a database. Note that this takes hours.
+    language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     entity_config (Dict[str, Any]): Arguments to be passed on to wikidata.read_entities().
     article_text_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_text().
@@ -72,6 +74,7 @@ def parse(
         _paths["wikidata_dump"] if not use_filtered_dumps else _paths["filtered_wikidata_dump"],
         db_conn,
         **(entity_config if entity_config else {}),
+        lang=language
     )
 
     wikipedia.read_prior_probs(
