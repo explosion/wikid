@@ -1,0 +1,45 @@
+title: 'wikid'
+description: |
+  _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database from Wikipedia & Wikidata dumps.
+vars:
+  version: "0.0.1"
+  use_filtered_dumps: "--use_filtered_dumps"
+
+directories: ["assets", "configs", "scripts"]
+
+assets:
+  - dest: 'assets/wiki/wikidata_entity_dump.json.bz2'
+    url: 'https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2'
+    description: Wikidata entity dump. Download can take a long time!
+    extra: True
+  - dest: 'assets/wiki/wikipedia_dump.xml.bz2'
+    url: 'https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles-multistream.xml.bz2'
+    description: Wikipedia dump. Download can take a long time!
+    extra: True
+  - dest: 'assets/wiki/wikidata_entity_dump_filtered.json.bz2'
+    url: 'https://github.com/explosion/projects/releases/download/nel-benchmark-filtered-wiki-data/wikidata_entity_dump_filtered.json.bz2'
+    description: Filtered Wikidata entity dump for demo purposes.
+    checksum: 'ba2d979105abf174208608b942242fcb'
+  - dest: 'assets/wiki/wikipedia_dump_filtered.xml.bz2'
+    url: 'https://github.com/explosion/projects/releases/download/nel-benchmark-filtered-wiki-data/wikipedia_dump_filtered.xml.bz2'
+    description: Filtered Wikipedia dump for demo purposes.
+    checksum: 'cb624eaa5887fe1ff47a9206c9bdcfd8'
+
+workflows:
+  all:
+    - parse_wiki_dumps
+
+commands:
+  - name: parse_wiki_dumps
+    help: "Parse Wikipedia dumps. This can take a long time if you're not using the filtered dumps!"
+    script:
+      - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.use_filtered_dumps}"
+    outputs:
+      - "assets/wiki/wiki.sqlite3"
+
+  - name: clean
+    help: "Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump."
+    script:
+      - "rm -f assets/wiki/wiki.sqlite3"
+    deps:
+      - "assets/wiki/wiki.sqlite3"
