@@ -33,5 +33,7 @@ jobs:
                 pip install -r requirements.txt
             displayName: 'Install dependencies'
 
-          - script: "PYTHONPATH=scripts python -m pytest"
+          - script: |
+              export PYTHONPATH=scripts
+              python -m pytest
             displayName: 'Run pytest'
