@@ -1,2 +1,2 @@
-from wiki import *
-from schemas import *
+from .wiki import *
+from .schemas import *
