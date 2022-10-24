@@ -1,7 +1,7 @@
 """ Parsing of Wiki dump and persisting of parsing results to DB. """
 from typing import Optional
 import typer
-from wiki import wiki_dump_api
+from wikid import wiki_dump_api
 
 
 def main(
@@ -9,7 +9,7 @@ def main(
     entity_limit: Optional[int] = typer.Option(None, "--entity_limit"),
     article_limit: Optional[int] = typer.Option(None, "--article_limit"),
     alias_limit: Optional[int] = typer.Option(None, "--alias_limit"),
-    use_filtered_dumps: bool = typer.Option(False, "--use_filtered_dumps"),
+    use_filtered_dumps: bool = typer.Option(False, "--filter"),
 ):
     """Parses Wikidata and Wikipedia dumps. Persists parsing results to DB.
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.

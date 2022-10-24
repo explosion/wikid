@@ -3,12 +3,15 @@ description: |
   [![Azure Pipelines](https://img.shields.io/azure-devops/build/explosion-ai/public/32/main.svg?logo=azure-pipelines&style=flat-square&label=build)](https://dev.azure.com/explosion-ai/public/_build?definitionId=32)
   [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
   <br/>
-  _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database from Wikipedia & Wikidata dumps.
+  _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database and a spaCy `KnowledgeBase` from Wikipedia & 
+  Wikidata dumps. `wikid` was designed with the use case of named entity linking (NEL) with spaCy in mind.
+  <br/>
+  Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 vars:
   version: "0.0.1"
   language: "en"
-  use_filtered_dumps: "--use_filtered_dumps"
+  filter: "--filter"
 
 directories: ["assets", "configs", "scripts"]
 
@@ -33,13 +36,21 @@ assets:
 workflows:
   all:
     - parse
+    - create_kb
 
 commands:
   - name: parse
     help: "Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!"
     script:
-      - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.language} ${vars.use_filtered_dumps}"
+      - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.language} ${vars.filter}"
     outputs:
+      - "assets/wiki.sqlite3"
+
+  - name: create_kb
+    help: "Creates KB utilizing SQLite database with Wiki content."
+    script:
+      - "echo 'TBD once spaCy 3.5 is available.'"
+    deps:
       - "assets/wiki.sqlite3"
 
   - name: clean
