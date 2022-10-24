@@ -1,7 +1,7 @@
 """ Parsing of Wiki dump and persisting of parsing results to DB. """
 from typing import Optional
 import typer
-from wikid import wiki_dump_api
+from wiki import wiki_dump_api
 
 
 def main(
