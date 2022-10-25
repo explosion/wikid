@@ -290,11 +290,11 @@ def read_texts(
         _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with entity ID, title, content.
         """
         db_conn.cursor().executemany(
-            "INSERT OR IGNORE INTO articles (entity_id, id) VALUES (?, ?)",
+            "INSERT INTO articles (entity_id, id) VALUES (?, ?)",
             _article_records,
         )
         db_conn.cursor().executemany(
-            "INSERT OR IGNORE INTO articles_texts (entity_id, title, content) VALUES (?, ?, ?)",
+            "INSERT INTO articles_texts (entity_id, title, content) VALUES (?, ?, ?)",
             _article_text_records,
         )
         db_conn.commit()
