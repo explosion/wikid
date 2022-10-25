@@ -11,9 +11,10 @@ description: |
 vars:
   version: "0.0.1"
   language: "en"
+  vectors_model: "en_core_web_lg"
   filter: "--filter"
 
-directories: ["assets", "configs", "scripts"]
+directories: ["assets", "configs", "scripts", "output"]
 
 assets:
   - dest: 'assets/wikidata_entity_dump.json.bz2'
@@ -44,18 +45,29 @@ commands:
     script:
       - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.language} ${vars.filter}"
     outputs:
-      - "assets/wiki.sqlite3"
+      - "output/wiki.sqlite3"
 
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "echo 'TBD once spaCy 3.5 is available.'"
+      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model}"
     deps:
-      - "assets/wiki.sqlite3"
+      - "output/wiki.sqlite3"
+    outputs:
+      - "output/kb"
+      - "output/nlp"
 
-  - name: clean
+  - name: delete_db
     help: "Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump."
     script:
-      - "rm -f assets/wiki/wiki.sqlite3"
+      - "rm -f output/wiki.sqlite3"
     deps:
-      - "assets/wiki.sqlite3"
+      - "output/wiki.sqlite3"
+
+  - name: clean
+    help: "Delete all generated artifacts except for SQLite database."
+    script:
+      - "rm -f output/kb output/nlp"
+    deps:
+      - "output/kb"
+      - "output/nlp"

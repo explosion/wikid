@@ -9,14 +9,14 @@ from schemas import Entity
 from . import wikidata
 from . import wikipedia
 
-_assets_dir = Path(os.path.abspath(__file__)).parent.parent.parent / "assets"
+_root_dir = Path(os.path.abspath(__file__)).parent.parent.parent
+_assets_dir = _root_dir / "assets"
 _paths = {
-    "db": _assets_dir / "wiki.sqlite3",
+    "db": _root_dir / "output" / "wiki.sqlite3",
     "wikidata_dump": _assets_dir / "wikidata_entity_dump.json.bz2",
     "wikipedia_dump": _assets_dir / "wikipedia_dump.xml.bz2",
     "filtered_wikidata_dump": _assets_dir / "wikidata_entity_dump_filtered.json.bz2",
     "filtered_wikipedia_dump": _assets_dir / "wikipedia_dump_filtered.xml.bz2",
-    "filtered_entity_entity_info": _assets_dir / "wiki_entity_info_filtered.pkl",
 }
 
 
@@ -100,11 +100,11 @@ def parse(
 
 
 def load_entities(
-    values: Tuple[str, ...], db_conn: Optional[sqlite3.Connection] = None
+    values: Tuple[str, ...] = (), db_conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, Entity]:
     """Loads information for entity or entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
-    values (Tuple[str]): Values for key to look up.
+    values (Tuple[str]): Values for key to look up. If empty, all entities are loaded.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     RETURNS (Dict[str, Entity]): Information on requested entities.
     """
@@ -125,7 +125,7 @@ def load_entities(
                 if alias
             },
             article_title=rec["article_title"],
-            article_text=rec["text"],
+            article_text=rec["content"],
             description=rec["description"],
             count=rec["count"] if rec["count"] else 0,
         )
@@ -151,7 +151,7 @@ def load_entities(
                 LEFT JOIN aliases_for_entities afe on
                     afe.entity_id = e.id
                 WHERE
-                    e.id IN (%s)
+                    {'FALSE' if len(values) else 'TRUE'} OR e.id IN (%s)
                 GROUP BY
                     e.id,
                     et.name,
