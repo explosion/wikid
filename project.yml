@@ -37,6 +37,7 @@ assets:
 workflows:
   all:
     - parse
+    - download_model
     - create_kb
 
 commands:
@@ -46,6 +47,11 @@ commands:
       - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.language} ${vars.filter}"
     outputs:
       - "output/wiki.sqlite3"
+
+  - name: download_model
+    help: "Download spaCy language model."
+    scripts:
+      - "spacy download ${vars.vector_model}"
 
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
