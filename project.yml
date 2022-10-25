@@ -51,7 +51,7 @@ commands:
   - name: download_model
     help: "Download spaCy language model."
     script:
-      - "spacy download ${vars.vector_model}"
+      - "spacy download ${vars.vectors_model}"
 
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
