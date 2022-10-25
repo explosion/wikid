@@ -16,7 +16,7 @@ _paths = {
     "wikipedia_dump": _assets_dir / "wikipedia_dump.xml.bz2",
     "filtered_wikidata_dump": _assets_dir / "wikidata_entity_dump_filtered.json.bz2",
     "filtered_wikipedia_dump": _assets_dir / "wikipedia_dump_filtered.xml.bz2",
-    "filtered_entity_entity_info": _assets_dir / "wiki_entity_info_filtered.pkl"
+    "filtered_entity_entity_info": _assets_dir / "wiki_entity_info_filtered.pkl",
 }
 
 
@@ -44,7 +44,9 @@ def extract_demo_dump(filter_terms: Set[str]) -> None:
 
     with open(_paths["filtered_entity_entity_info"], "rb") as file:
         _, entity_labels = pickle.load(file)
-    wikipedia.extract_demo_dump(_paths["wikipedia_dump"], _paths["filtered_wikipedia_dump"], entity_labels)
+    wikipedia.extract_demo_dump(
+        _paths["wikipedia_dump"], _paths["filtered_wikipedia_dump"], entity_labels
+    )
 
 
 def parse(
@@ -53,7 +55,7 @@ def parse(
     entity_config: Optional[Dict[str, Any]] = None,
     article_text_config: Optional[Dict[str, Any]] = None,
     alias_prior_prob_config: Optional[Dict[str, Any]] = None,
-    use_filtered_dumps: bool = False
+    use_filtered_dumps: bool = False,
 ) -> None:
     """Parses Wikipedia and Wikidata dumps. Writes parsing results to a database. Note that this takes hours.
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
@@ -72,20 +74,26 @@ def parse(
         db_conn.cursor().executescript(ddl_sql.read())
 
     wikidata.read_entities(
-        _paths["wikidata_dump"] if not use_filtered_dumps else _paths["filtered_wikidata_dump"],
+        _paths["wikidata_dump"]
+        if not use_filtered_dumps
+        else _paths["filtered_wikidata_dump"],
         db_conn,
         **(entity_config if entity_config else {}),
-        lang=language
+        lang=language,
     )
 
     wikipedia.read_prior_probs(
-        _paths["wikipedia_dump"] if not use_filtered_dumps else _paths["filtered_wikipedia_dump"],
+        _paths["wikipedia_dump"]
+        if not use_filtered_dumps
+        else _paths["filtered_wikipedia_dump"],
         db_conn,
         **(alias_prior_prob_config if alias_prior_prob_config else {}),
     )
 
     wikipedia.read_texts(
-        _paths["wikipedia_dump"] if not use_filtered_dumps else _paths["filtered_wikipedia_dump"],
+        _paths["wikipedia_dump"]
+        if not use_filtered_dumps
+        else _paths["filtered_wikipedia_dump"],
         db_conn,
         **(article_text_config if article_text_config else {}),
     )
@@ -123,7 +131,7 @@ def load_entities(
         )
         for rec in db_conn.cursor().execute(
             f"""
-                SELECT 
+                SELECT
                     e.id,
                     et.name as entity_title,
                     et.description,
@@ -132,7 +140,7 @@ def load_entities(
                     at.content,
                     GROUP_CONCAT(afe.alias) as aliases,
                     SUM(afe.count) as count
-                FROM 
+                FROM
                     entities e
                 LEFT JOIN entities_texts et on
                     et.ROWID = e.ROWID
@@ -141,8 +149,8 @@ def load_entities(
                 LEFT JOIN articles_texts at on
                     at.ROWID = a.ROWID
                 LEFT JOIN aliases_for_entities afe on
-                    afe.entity_id = e.id                                         
-                WHERE 
+                    afe.entity_id = e.id
+                WHERE
                     e.id IN (%s)
                 GROUP BY
                     e.id,
@@ -178,13 +186,13 @@ def load_alias_entity_prior_probabilities(
         ]
         for rec in db_conn.cursor().execute(
             """
-                SELECT 
+                SELECT
                     alias,
                     GROUP_CONCAT(entity_id) as entity_ids,
                     GROUP_CONCAT(count) as counts
-                FROM 
-                    aliases_for_entities                                   
-                WHERE 
+                FROM
+                    aliases_for_entities
+                WHERE
                     entity_id IN (%s)
                 GROUP BY
                     alias
@@ -201,4 +209,3 @@ def load_alias_entity_prior_probabilities(
         ]
 
     return alias_entity_prior_probs
-

@@ -262,14 +262,16 @@ def _write_to_db(
         """
         INSERT INTO aliases_for_entities (alias, entity_id, count) VALUES (?, ?, ?)
         ON CONFLICT (alias, entity_id) DO UPDATE SET
-            count=count + excluded.count 
+            count=count + excluded.count
         """,
         aliases_for_entities,
     )
     db_conn.commit()
 
 
-def extract_demo_dump(in_dump_path: Path, out_dump_path: Path, filter_terms: Set[str]) -> Tuple[Set[str], Set[str]]:
+def extract_demo_dump(
+    in_dump_path: Path, out_dump_path: Path, filter_terms: Set[str]
+) -> Tuple[Set[str], Set[str]]:
     """Writes information on those entities having at least one of the filter_terms in their description to a new dump
     at location filtered_dump_path.
     in_dump_path (Path): Path to complete Wikidata dump.
@@ -297,7 +299,12 @@ def extract_demo_dump(in_dump_path: Path, out_dump_path: Path, filter_terms: Set
                         if clean_line.endswith(b","):
                             clean_line = clean_line[:-1]
                         if len(clean_line) > 1:
-                            keep = any([ft in clean_line.decode("utf-8").lower() for ft in filter_terms])
+                            keep = any(
+                                [
+                                    ft in clean_line.decode("utf-8").lower()
+                                    for ft in filter_terms
+                                ]
+                            )
                             if keep:
                                 obj = json.loads(clean_line)
                                 label = obj["labels"].get("en", {}).get("value", "")

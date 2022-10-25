@@ -68,14 +68,16 @@ def _read_entity_title_id_map(db_conn: sqlite3.Connection) -> Dict[str, str]:
 
     return {
         row["name"]: row["id"]
-        for row in db_conn.execute("""
-            SELECT 
-                et.name, e.id 
-            FROM 
+        for row in db_conn.execute(
+            """
+            SELECT
+                et.name, e.id
+            FROM
                 entities e
             INNER JOIN entities_texts et ON
                 et.ROWID = e.ROWID
-        """)
+        """
+        )
     }
 
 
@@ -260,7 +262,7 @@ def read_texts(
     batch_size: int = 10000,
     limit: Optional[int] = None,
     n_char_limit: int = 1000,
-    lang: str = "en"
+    lang: str = "en",
 ) -> None:
     """
     Read the XML Wikipedia data to parse out clean article texts. Texts are stored in file.
@@ -279,7 +281,10 @@ def read_texts(
         rec["id"] for rec in db_conn.cursor().execute("SELECT id FROM articles")
     }
 
-    def write_to_db(_article_records: List[Tuple[str, str]], _article_text_records: List[Tuple[str, str, str]]) -> None:
+    def write_to_db(
+        _article_records: List[Tuple[str, str]],
+        _article_text_records: List[Tuple[str, str, str]],
+    ) -> None:
         """Writes records to list.
         _article_records (List[Tuple[str, str]]): `articles`entries with entity ID, ID.
         _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with entity ID, title, content.
@@ -290,13 +295,15 @@ def read_texts(
         )
         db_conn.cursor().executemany(
             "INSERT OR IGNORE INTO articles_texts (entity_id, title, content) VALUES (?, ?, ?)",
-            _article_text_records
+            _article_text_records,
         )
         db_conn.commit()
 
     with bz2.open(wikipedia_input_path, mode="rb") as file:
         pbar_params = {"total": limit} if limit else {}
-        with tqdm.tqdm(desc="Parsing article texts", miniters=1000, **pbar_params) as pbar:
+        with tqdm.tqdm(
+            desc="Parsing article texts", miniters=1000, **pbar_params
+        ) as pbar:
             n_articles = 0
             n_viable_articles = 0
             article_text = ""
@@ -307,7 +314,9 @@ def read_texts(
             # Terms in article indicating it should be skipped (for redirects and disambiguation pages).
             # Note: checks for redirection/disambiguation articles are not language-agnostic. Porting this to the
             # generalized extraction needs to consider that.
-            with open(Path(__file__).parent.parent.parent / "configs" / "skip_terms.yaml", "r") as stream:
+            with open(
+                Path(__file__).parent.parent.parent / "configs" / "skip_terms.yaml", "r"
+            ) as stream:
                 skip_terms = set(yaml.safe_load(stream)[lang])
             skip_article = False
 
@@ -351,17 +360,19 @@ def read_texts(
                             if article_title in entity_title_to_id:
                                 text_to_append = clean_text[:n_char_limit]
                                 for (to_replace, replacement) in (
-                                        ("(;", " "),
-                                        ("(,", " "),
-                                        (" ; ", " "),
-                                        (" , ", ""),
-                                        ("()", ""),
+                                    ("(;", " "),
+                                    ("(,", " "),
+                                    (" ; ", " "),
+                                    (" , ", ""),
+                                    ("()", ""),
                                 ):
                                     text_to_append = text_to_append.replace(
                                         to_replace, replacement
                                     )
 
-                                article_records.append((entity_title_to_id[article_title], article_id))
+                                article_records.append(
+                                    (entity_title_to_id[article_title], article_id)
+                                )
                                 article_texts_records.append(
                                     (
                                         entity_title_to_id[article_title],
@@ -433,7 +444,9 @@ def extract_demo_dump(
 
     with bz2.open(in_dump_path, mode="rb") as in_file:
         with bz2.open(out_dump_path, mode="wb") as out_file:
-            with tqdm.tqdm(desc="Filtering article texts", miniters=1, total=len(entity_titles)) as pbar:
+            with tqdm.tqdm(
+                desc="Filtering article texts", miniters=1, total=len(entity_titles)
+            ) as pbar:
                 reading_revision = False
                 line_cache: List[bytes] = []
 

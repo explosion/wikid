@@ -24,7 +24,7 @@ def main(
         entity_config={"limit": entity_limit},
         article_text_config={"limit": article_limit},
         alias_prior_prob_config={"limit": alias_limit},
-        use_filtered_dumps=use_filtered_dumps
+        use_filtered_dumps=use_filtered_dumps,
     )
 
 
