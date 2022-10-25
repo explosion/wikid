@@ -50,7 +50,7 @@ commands:
 
   - name: download_model
     help: "Download spaCy language model."
-    scripts:
+    script:
       - "spacy download ${vars.vector_model}"
 
   - name: create_kb
