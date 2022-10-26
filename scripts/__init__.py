@@ -7,6 +7,7 @@ from .wiki import (
     parse,
     namespaces,
 )
+from .utils import read_filter_terms
 
 __all__ = [
     "schemas",
@@ -16,4 +17,5 @@ __all__ = [
     "load_alias_entity_prior_probabilities",
     "parse",
     "namespaces",
+    "read_filter_terms",
 ]
