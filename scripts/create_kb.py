@@ -9,7 +9,7 @@ import spacy
 import tqdm
 import typer
 from spacy.kb import KnowledgeBase
-from wiki import wiki_dump_api
+import wiki
 
 
 def main(vectors_model: str, language: str):
@@ -26,7 +26,7 @@ def main(vectors_model: str, language: str):
     entity_list: List[str] = []
     count_list: List[int] = []
     vector_list: List[numpy.ndarray] = []  # type: ignore
-    entities = wiki_dump_api.load_entities(language=language)
+    entities = wiki.load_entities(language=language)
 
     # Infer vectors for entities' descriptions.
     desc_vectors = [
@@ -60,7 +60,7 @@ def main(vectors_model: str, language: str):
     )
 
     # Add aliases with normalized priors to KB. This won't be necessary with a custom KB.
-    alias_entity_prior_probs = wiki_dump_api.load_alias_entity_prior_probabilities(
+    alias_entity_prior_probs = wiki.load_alias_entity_prior_probabilities(
         set(entities.keys()), language=language
     )
     for alias, entity_prior_probs in alias_entity_prior_probs.items():

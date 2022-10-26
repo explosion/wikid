@@ -1,7 +1,7 @@
 """ Parsing of Wiki dump and persisting of parsing results to DB. """
 from typing import Optional
 import typer
-from wiki import wiki_dump_api
+from wiki import parse
 
 
 def main(
@@ -23,7 +23,7 @@ def main(
     alias_limit (Optional[int]): Max. number of entity aliases to parse. Unlimited if None.
     """
 
-    wiki_dump_api.parse(
+    parse(
         language=language,
         use_filtered_dumps=use_filtered_dumps,
         entity_config={"limit": entity_limit},
