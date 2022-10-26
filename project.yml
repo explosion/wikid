@@ -44,7 +44,7 @@ commands:
   - name: parse
     help: "Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!"
     script:
-      - "env PYTHONPATH=scripts python ./scripts/parse_wiki_dumps.py ${vars.language} ${vars.filter}"
+      - "env PYTHONPATH=scripts python ./scripts/parse.py ${vars.language} ${vars.filter}"
     outputs:
       - "output/wiki.sqlite3"
 
@@ -64,7 +64,7 @@ commands:
       - "output/nlp"
 
   - name: delete_db
-    help: "Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump."
+    help: "Deletes SQLite database generated in step parse with data parsed from Wikidata and Wikipedia dump."
     script:
       - "rm -f output/wiki.sqlite3"
     deps:

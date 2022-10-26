@@ -5,7 +5,10 @@
 [![Azure Pipelines](https://img.shields.io/azure-devops/build/explosion-ai/public/32/main.svg?logo=azure-pipelines&style=flat-square&label=build)](https://dev.azure.com/explosion-ai/public/_build?definitionId=32)
 [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
 <br/>
-_No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database from Wikipedia & Wikidata dumps.
+_No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database and a spaCy `KnowledgeBase` from Wikipedia & 
+Wikidata dumps. `wikid` was designed with the use case of named entity linking (NEL) with spaCy in mind.
+<br/>
+Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 
 ## 📋 project.yml
@@ -23,7 +26,10 @@ Commands are only re-run if their inputs have changed.
 | Command | Description |
 | --- | --- |
 | `parse` | Parse Wiki dumps. This can take a long time if you're not using the filtered dumps! |
-| `clean` | Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump. |
+| `download_model` | Download spaCy language model. |
+| `create_kb` | Creates KB utilizing SQLite database with Wiki content. |
+| `delete_db` | Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump. |
+| `clean` | Delete all generated artifacts except for SQLite database. |
 
 ### ⏭ Workflows
 
@@ -34,7 +40,7 @@ inputs have changed.
 
 | Workflow | Steps |
 | --- | --- |
-| `all` | `parse` |
+| `all` | `parse` &rarr; `download_model` &rarr; `create_kb` |
 
 ### 🗂 Assets
 
