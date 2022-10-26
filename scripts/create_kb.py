@@ -12,8 +12,9 @@ from spacy.kb import KnowledgeBase
 from wiki import wiki_dump_api
 
 
-def main(vectors_model: str):
+def main(vectors_model: str, language: str):
     """Create the Knowledge Base in spaCy and write it to file.
+    language (str): Language.
     vectors_model (str): Name of model with word vectors to use.
     """
 
@@ -25,7 +26,7 @@ def main(vectors_model: str):
     entity_list: List[str] = []
     count_list: List[int] = []
     vector_list: List[numpy.ndarray] = []  # type: ignore
-    entities = wiki_dump_api.load_entities()
+    entities = wiki_dump_api.load_entities(language=language)
 
     # Infer vectors for entities' descriptions.
     desc_vectors = [
@@ -60,7 +61,7 @@ def main(vectors_model: str):
 
     # Add aliases with normalized priors to KB. This won't be necessary with a custom KB.
     alias_entity_prior_probs = wiki_dump_api.load_alias_entity_prior_probabilities(
-        set(entities.keys())
+        set(entities.keys()), language=language
     )
     for alias, entity_prior_probs in alias_entity_prior_probs.items():
         kb.add_alias(
@@ -76,8 +77,8 @@ def main(vectors_model: str):
 
     # Serialize knowledge base & pipeline.
     output_dir = Path(os.path.abspath(__file__)).parent.parent / "output"
-    kb.to_disk(output_dir / "kb")
-    nlp_dir = output_dir / "nlp"
+    kb.to_disk(output_dir / language / "kb")
+    nlp_dir = output_dir / language / "nlp"
     os.makedirs(nlp_dir, exist_ok=True)
     nlp.to_disk(nlp_dir)
     logger.info("Successfully constructed knowledge base.")

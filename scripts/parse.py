@@ -9,7 +9,7 @@ def main(
     # Argument instead of option so it can be overwritten by other spaCy projects (otherwise escaping makes it
     # impossible to pass on '--OPTION', since it's interpreted as dedicated option ("--vars.OPTION --OPTION") instead
     # of as "--vars.OPTION '--OPTION'", as it should be.
-    use_filtered_dumps: bool = typer.Argument("--filter"),
+    use_filtered_dumps: bool,
     entity_limit: Optional[int] = typer.Option(None, "--entity_limit"),
     article_limit: Optional[int] = typer.Option(None, "--article_limit"),
     alias_limit: Optional[int] = typer.Option(None, "--alias_limit"),
@@ -25,10 +25,10 @@ def main(
 
     wiki_dump_api.parse(
         language=language,
+        use_filtered_dumps=use_filtered_dumps,
         entity_config={"limit": entity_limit},
         article_text_config={"limit": article_limit},
         alias_prior_prob_config={"limit": alias_limit},
-        use_filtered_dumps=use_filtered_dumps,
     )
 
 

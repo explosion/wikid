@@ -12,7 +12,7 @@ vars:
   version: "0.0.1"
   language: "en"
   vectors_model: "en_core_web_lg"
-  filter: "--filter"
+  filter: "True"
 
 directories: ["assets", "configs", "scripts", "output"]
 
@@ -21,7 +21,7 @@ assets:
     url: 'https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.json.bz2'
     description: Wikidata entity dump. Download can take a long time!
     extra: True
-  - dest: 'assets/wikipedia_dump.xml.bz2'
+  - dest: 'assets/${vars.language}-wikipedia_dump.xml.bz2'
     url: 'https://dumps.wikimedia.org/${vars.language}wiki/latest/${vars.language}wiki-latest-pages-articles-multistream.xml.bz2'
     description: Wikipedia dump. Download can take a long time!
     extra: True
@@ -46,7 +46,7 @@ commands:
     script:
       - "env PYTHONPATH=scripts python ./scripts/parse.py ${vars.language} ${vars.filter}"
     outputs:
-      - "output/wiki.sqlite3"
+      - "output/${vars.language}/wiki.sqlite3"
 
   - name: download_model
     help: "Download spaCy language model."
@@ -56,24 +56,24 @@ commands:
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model}"
+      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language}"
     deps:
-      - "output/wiki.sqlite3"
+      - "output/${vars.language}/wiki.sqlite3"
     outputs:
-      - "output/kb"
-      - "output/nlp"
+      - "output/${vars.language}/kb"
+      - "output/${vars.language}/nlp"
 
   - name: delete_db
     help: "Deletes SQLite database generated in step parse with data parsed from Wikidata and Wikipedia dump."
     script:
-      - "rm -f output/wiki.sqlite3"
+      - "rm -f output/${vars.language}/wiki.sqlite3"
     deps:
-      - "output/wiki.sqlite3"
+      - "output/${vars.language}/wiki.sqlite3"
 
   - name: clean
     help: "Delete all generated artifacts except for SQLite database."
     script:
-      - "rm -f output/kb output/nlp"
+      - "rm -f output/${vars.language}/kb output/${vars.language}/nlp"
     deps:
-      - "output/kb"
-      - "output/nlp"
+      - "output/${vars.language}/kb"
+      - "output/${vars.language}/nlp"

@@ -9,33 +9,46 @@ from schemas import Entity
 from . import wikidata
 from . import wikipedia
 
-_root_dir = Path(os.path.abspath(__file__)).parent.parent.parent
-_assets_dir = _root_dir / "assets"
-_paths = {
-    "db": _root_dir / "output" / "wiki.sqlite3",
-    "wikidata_dump": _assets_dir / "wikidata_entity_dump.json.bz2",
-    "wikipedia_dump": _assets_dir / "wikipedia_dump.xml.bz2",
-    "filtered_wikidata_dump": _assets_dir / "wikidata_entity_dump_filtered.json.bz2",
-    "filtered_wikipedia_dump": _assets_dir / "wikipedia_dump_filtered.xml.bz2",
-}
+
+def _get_paths(language: str) -> Dict[str, Path]:
+    """Get paths.
+    language (str): Language.
+    RETURNS (Dict[str, Path]): Paths.
+    """
+
+    _root_dir = Path(os.path.abspath(__file__)).parent.parent.parent
+    _assets_dir = _root_dir / "assets"
+    return {
+        "db": _root_dir / "output" / language / "wiki.sqlite3",
+        "wikidata_dump": _assets_dir / "wikidata_entity_dump.json.bz2",
+        "wikipedia_dump": _assets_dir / f"{language}-wikipedia_dump.xml.bz2",
+        "filtered_wikidata_dump": _assets_dir
+        / "wikidata_entity_dump_filtered.json.bz2",
+        "filtered_wikipedia_dump": _assets_dir / "wikipedia_dump_filtered.xml.bz2",
+    }
 
 
-def establish_db_connection() -> sqlite3.Connection:
+def establish_db_connection(language: str) -> sqlite3.Connection:
     """Estabished database connection.
+    language (str): Language.
     RETURNS (sqlite3.Connection): Database connection.
     """
-    db_conn = sqlite3.connect(_paths["db"])
+    db_path = _get_paths(language)["db"]
+    os.makedirs(db_path.parent, exist_ok=True)
+    db_conn = sqlite3.connect(_get_paths(language)["db"])
     db_conn.row_factory = sqlite3.Row
     return db_conn
 
 
-def extract_demo_dump(filter_terms: Set[str]) -> None:
+def extract_demo_dump(filter_terms: Set[str], language: str) -> None:
     """Extracts small demo dump by parsing the Wiki dumps and keeping only those entities (and their articles)
     containing any of the specified filter_terms. The retained entities and articles are written into intermediate
     files.
     filter_terms (Set[str]): Terms having to appear in entity descriptions in order to be wrr
+    language (str): Language.
     """
 
+    _paths = _get_paths(language)
     entity_ids, entity_labels = wikidata.extract_demo_dump(
         _paths["wikidata_dump"], _paths["filtered_wikidata_dump"], filter_terms
     )
@@ -66,10 +79,11 @@ def parse(
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
     """
 
+    _paths = _get_paths(language)
     msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
     assert not os.path.exists(_paths["db"]), msg
 
-    db_conn = db_conn if db_conn else establish_db_connection()
+    db_conn = db_conn if db_conn else establish_db_connection(language)
     with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
         db_conn.cursor().executescript(ddl_sql.read())
 
@@ -100,15 +114,18 @@ def parse(
 
 
 def load_entities(
-    values: Tuple[str, ...] = (), db_conn: Optional[sqlite3.Connection] = None
+    language: str,
+    values: Tuple[str, ...] = (),
+    db_conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, Entity]:
     """Loads information for entity or entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
+    language (str): Language.
     values (Tuple[str]): Values for key to look up. If empty, all entities are loaded.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     RETURNS (Dict[str, Entity]): Information on requested entities.
     """
-    db_conn = db_conn if db_conn else establish_db_connection()
+    db_conn = db_conn if db_conn else establish_db_connection(language)
 
     return {
         rec["id"]: Entity(
@@ -167,15 +184,16 @@ def load_entities(
 
 
 def load_alias_entity_prior_probabilities(
-    entity_ids: Set[str], db_conn: Optional[sqlite3.Connection] = None
+    entity_ids: Set[str], language: str, db_conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, List[Tuple[str, float]]]:
     """Loads alias-entity counts from database and transforms them into prior probabilities per alias.
     entity_ids (Set[str]): Set of entity IDs to allow.
+    language (str): Language.
     RETURN (Dict[str, Tuple[Tuple[str, ...], Tuple[float, ...]]]): Mapping of alias to tuples of entities and the
         corresponding prior probabilities.
     """
 
-    db_conn = db_conn if db_conn else establish_db_connection()
+    db_conn = db_conn if db_conn else establish_db_connection(language)
 
     alias_entity_prior_probs = {
         rec["alias"]: [
