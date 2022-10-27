@@ -1,5 +1,15 @@
 -- DDL for parsed Wiki data.
 
+-- Note that the four tables entities, entities_texts, articles, and article_texts could be combined into one table.
+-- Two reasons why this isn't done:
+--  1. For efficient full-text search we're using FTS5 virtual tables, which don't support index lookup as efficient as
+--     an index lookup in a normal table. Hence we split the data we want to use for full-text search from the
+--     identifiying keys (entity/article IDs).
+--  2. All article data could just as well be part of the entities and/or entities_texts. This is not done due to the
+--     sequential nature of our Wiki parsing: first the Wikidata dump (entities) are read and stored in the DB, then the
+--     Wikipedia dump (articles). We could update the entities table, but this is less efficient than inserting new
+--     records. If profiling shows this not to be a bottleneck, we may reconsider merging these two tables.
+
 CREATE TABLE entities (
     -- Equivalent to Wikidata QID.
     id TEXT PRIMARY KEY NOT NULL,
