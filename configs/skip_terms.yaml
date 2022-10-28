@@ -1,0 +1,12 @@
+# List of lower-cased terms indicating an article should be skipped in its entirety, by language.
+# These terms appear in Wikipedia articles that we aren't interested in including in our database, such as redirection
+# or disambiguation pages. Unfortunately there doesn't seem to be a language-agnostic mark-up code for these articles
+# (or is there?), so we gather them per language.
+en:
+  - "#redirection"
+  - "#redirect"
+  - "{{disambiguation}}"
+es:
+  - "#redirect"
+  - "#redirección"
+  - "{{desambiguación}}"

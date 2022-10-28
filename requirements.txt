@@ -1,0 +1,4 @@
+spacy
+pyyaml
+tqdm
+prettytable
