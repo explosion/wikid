@@ -115,7 +115,7 @@ def parse(
 
 def load_entities(
     language: str,
-    values: Tuple[str, ...] = (),
+    values: Tuple[str, ...] = tuple(),
     db_conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, schemas.Entity]:
     """Loads information for entity or entities by querying information from DB.
