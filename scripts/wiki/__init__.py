@@ -115,13 +115,13 @@ def parse(
 
 def load_entities(
     language: str,
-    values: Tuple[str, ...] = tuple(),
+    qids: Tuple[str, ...] = tuple(),
     db_conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, schemas.Entity]:
     """Loads information for entity or entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
     language (str): Language.
-    values (Tuple[str]): Values for key to look up. If empty, all entities are loaded.
+    qids (Tuple[str]): QIDS to look up. If empty, all entities are loaded.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     RETURNS (Dict[str, Entity]): Information on requested entities.
     """
@@ -168,7 +168,7 @@ def load_entities(
                 LEFT JOIN aliases_for_entities afe on
                     afe.entity_id = e.id
                 WHERE
-                    {'FALSE' if len(values) else 'TRUE'} OR e.id IN (%s)
+                    {'FALSE' if len(qids) else 'TRUE'} OR e.id IN (%s)
                 GROUP BY
                     e.id,
                     et.name,
@@ -177,17 +177,16 @@ def load_entities(
                     at.title,
                     at.content
             """
-            % ",".join("?" * len(values)),
-            tuple(set(values)),
+            % ",".join("?" * len(qids)),
+            tuple(set(qids)),
         )
     }
 
 
 def load_alias_entity_prior_probabilities(
-    entity_ids: Set[str], language: str, db_conn: Optional[sqlite3.Connection] = None
+    language: str, db_conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, List[Tuple[str, float]]]:
     """Loads alias-entity counts from database and transforms them into prior probabilities per alias.
-    entity_ids (Set[str]): Set of entity IDs to allow.
     language (str): Language.
     RETURN (Dict[str, Tuple[Tuple[str, ...], Tuple[float, ...]]]): Mapping of alias to tuples of entities and the
         corresponding prior probabilities.
@@ -210,13 +209,9 @@ def load_alias_entity_prior_probabilities(
                     GROUP_CONCAT(count) as counts
                 FROM
                     aliases_for_entities
-                WHERE
-                    entity_id IN (%s)
                 GROUP BY
                     alias
             """
-            % ",".join("?" * len(entity_ids)),
-            tuple(entity_ids),
         )
     }
 
