@@ -12,10 +12,7 @@
 
 CREATE TABLE entities (
     -- Equivalent to Wikidata QID.
-    id TEXT PRIMARY KEY NOT NULL,
-    -- Claims found for this entity.
-    -- This could be normalized. Not worth it at the moment though, since claims aren't used.
-    claims TEXT
+    id TEXT PRIMARY KEY NOT NULL
 );
 
 -- The FTS5 virtual table implementation doesn't allow for indices, so we rely on ROWID to match entities.
@@ -52,19 +49,19 @@ CREATE VIRTUAL TABLE articles_texts USING fts5(
     content
 );
 
-CREATE TABLE properties_in_entities (
-    -- ID of property describing relationships between entities.
-    property_id TEXT NOT NULL,
-    -- ID of source entity.
-    from_entity_id TEXT NOT NULL,
-    -- ID of destination entity.
-    to_entity_id TEXT NOT NULL,
-    PRIMARY KEY (property_id, from_entity_id, to_entity_id),
-    FOREIGN KEY(from_entity_id) REFERENCES entities(id),
-    FOREIGN KEY(to_entity_id) REFERENCES entities(id)
-);
-CREATE INDEX idx_properties_in_entities
-ON properties_in_entities (property_id);
+-- CREATE TABLE properties_in_entities (
+--     -- ID of property describing relationships between entities.
+--     property_id TEXT NOT NULL,
+--     -- ID of source entity.
+--     from_entity_id TEXT NOT NULL,
+--     -- ID of destination entity.
+--     to_entity_id TEXT NOT NULL,
+--     PRIMARY KEY (property_id, from_entity_id, to_entity_id),
+--     FOREIGN KEY(from_entity_id) REFERENCES entities(id),
+--     FOREIGN KEY(to_entity_id) REFERENCES entities(id)
+-- );
+-- CREATE INDEX idx_properties_in_entities
+-- ON properties_in_entities (property_id);
 
 CREATE TABLE aliases_for_entities (
     -- Alias for entity label.

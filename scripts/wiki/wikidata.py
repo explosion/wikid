@@ -229,7 +229,7 @@ def _write_to_db(
     aliases_for_entities: List[Tuple[str, str, int]] = []
 
     for title, qid in title_to_id.items():
-        entities.append((qid, json.dumps(id_to_attrs[qid]["claims"])))
+        entities.append((qid,))
         entities_texts.append(
             (
                 qid,
@@ -247,17 +247,17 @@ def _write_to_db(
 
     cur = db_conn.cursor()
     cur.executemany(
-        "INSERT INTO entities (id, claims) VALUES (?, ?)",
+        "INSERT INTO entities (id) VALUES (?)",
         entities,
     )
     cur.executemany(
         "INSERT INTO entities_texts (entity_id, name, description, label) VALUES (?, ?, ?, ?)",
         entities_texts,
     )
-    cur.executemany(
-        "INSERT INTO properties_in_entities (property_id, from_entity_id, to_entity_id) VALUES (?, ?, ?)",
-        props_in_ents,
-    )
+    # cur.executemany(
+    #     "INSERT INTO properties_in_entities (property_id, from_entity_id, to_entity_id) VALUES (?, ?, ?)",
+    #     props_in_ents,
+    # )
     cur.executemany(
         """
         INSERT INTO aliases_for_entities (alias, entity_id, count) VALUES (?, ?, ?)

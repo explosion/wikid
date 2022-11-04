@@ -21,6 +21,14 @@ def main(vectors_model: str, language: str):
     logger = logging.getLogger(__name__)
     nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
 
+    wkb = wiki.kb.WikiKB(
+        nlp.vocab,
+        nlp.config["components"]["tok2vec"]["model"]["encode"]["width"],
+        wiki.get_paths(language)["db"],
+        language,
+    )
+    wkb.infer_embeddings(nlp)
+    exit()
     logger.info("Constructing knowledge base.")
     kb = KnowledgeBase(vocab=nlp.vocab, entity_vector_length=nlp.vocab.vectors_length)
     entity_list: List[str] = []
@@ -92,3 +100,4 @@ def main(vectors_model: str, language: str):
 
 if __name__ == "__main__":
     typer.run(main)
+    # main("en_core_web_sm", "en")
