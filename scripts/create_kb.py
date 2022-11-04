@@ -34,12 +34,18 @@ def main(vectors_model: str, language: str):
         for doc in tqdm.tqdm(
             nlp.pipe(
                 texts=[
-                    entities[qid].description
-                    if entities[qid].description
-                    else (
-                        entities[qid].article_text[:500]
-                        if entities[qid].article_text
-                        else entities[qid].name
+                    entities[qid].name
+                    + " "
+                    + (" ".join(entities[qid].aliases) if entities[qid].aliases else "")
+                    + " "
+                    + (
+                        entities[qid].description
+                        if entities[qid].description
+                        else (
+                            entities[qid].article_text[:500]
+                            if entities[qid].article_text
+                            else entities[qid].name
+                        )
                     )
                     for qid in entities.keys()
                 ],
