@@ -7,34 +7,11 @@ import io
 import json
 import sqlite3
 from pathlib import Path
-from typing import Union, Optional, Dict, Tuple, Any, List, Set, Iterator
+from typing import Union, Optional, Dict, Tuple, Any, List, Set
 
 import tqdm
 
 from .namespaces import WD_META_ITEMS
-
-
-def chunked_readlines(
-    f: bz2.BZ2File, chunk_size: int = 1024 * 1024 * 32
-) -> Iterator[bytes]:
-    """Reads lines from compressed BZ2 file in chunks. Source: https://stackoverflow.com/a/65765814.
-    chunk_size (int): Chunk size in bytes.
-    RETURNS (Iterator[bytes]): Read bytes.
-    """
-    s = io.BytesIO()
-    while True:
-        buf = f.read(chunk_size)
-        if not buf:
-            return s.getvalue()
-        s.write(buf)
-        s.seek(0)
-        l = s.readlines()
-        yield from l[:-1]
-        s = io.BytesIO()
-        # very important: the last line read in the 1 MB chunk might be
-        # incomplete, so we keep it to be processed in the next iteration
-        # check if this is ok if f.read() stopped in the middle of a \r\n?
-        s.write(l[-1])
 
 
 def read_entities(
@@ -50,19 +27,19 @@ def read_entities(
     parse_aliases: bool = True,
     parse_claims: bool = True,
 ) -> None:
-    """Reads entity information from wikidata dump.
+    """Reads qid information from wikidata dump.
     wikidata_file (Union[str, Path]): Path of wikidata dump file.
     db_conn (sqlite3.Connection): DB connection.
     batch_size (int): Batch size for DB commits.
     limit (Optional[int]): Max. number of entities to parse.
     to_print (bool): Whether to print information during the parsing process.
-    lang (str): Language with which to filter entity information.
-    parse_descr (bool): Whether to parse entity descriptions.
-    parse_properties (bool): Whether to parse entity properties.
-    parse_sitelinks (bool): Whether to parse entity sitelinks.
-    parse_labels (bool): Whether to parse entity labels.
-    parse_aliases (bool): Whether to parse entity aliases.
-    parse_claims (bool): Whether to parse entity claims.
+    lang (str): Language with which to filter qid information.
+    parse_descr (bool): Whether to parse qid descriptions.
+    parse_properties (bool): Whether to parse qid properties.
+    parse_sitelinks (bool): Whether to parse qid sitelinks.
+    parse_labels (bool): Whether to parse qid labels.
+    parse_aliases (bool): Whether to parse qid aliases.
+    parse_claims (bool): Whether to parse qid claims.
     """
 
     # Read the JSON wiki data and parse out the entities. Takes about 7-10h to parse 55M lines.
@@ -94,11 +71,21 @@ def read_entities(
 
     with bz2.open(wikidata_file, mode="rb") as file:
         pbar_params = {"total": limit} if limit else {}
-
         with tqdm.tqdm(
-            desc="Parsing entity data", leave=True, miniters=1000, **pbar_params
+            desc="Parsing entity data",
+            leave=True,
+            miniters=1000,
+            smoothing=0,
+            **pbar_params
         ) as pbar:
-            for cnt, line in enumerate(file):
+            # Using BufferedReader shouldn't be necessary in Python 3.10+. See
+            # https://discuss.python.org/t/non-optimal-bz2-reading-speed/6869/5 and the corresponding PR:
+            # https://github.com/python/ cpython/pull/25353.
+            # Using buffer size of 16 MB increases the number of read lines per second from around 4.7k to 6k on the
+            # same system.
+            for cnt, line in enumerate(
+                io.BufferedReader(file, buffer_size=1024 * 1024 * 16)
+            ):
                 if limit and cnt >= limit:
                     break
 
@@ -217,7 +204,7 @@ def _write_to_db(
     title_to_id: Dict[str, str],
     id_to_attrs: Dict[str, Dict[str, Any]],
 ) -> None:
-    """Persists entity information to database.
+    """Persists qid information to database.
     db_conn (Connection): Database connection.
     title_to_id (Dict[str, str]): Titles to QIDs.
     id_to_attrs (Dict[str, Dict[str, Any]]): For QID a dictionary with property name to property value(s).
@@ -225,7 +212,6 @@ def _write_to_db(
 
     entities: List[Tuple[Optional[str], ...]] = []
     entities_texts: List[Tuple[Optional[str], ...]] = []
-    props_in_ents: Set[Tuple[str, str, str]] = set()
     aliases_for_entities: List[Tuple[str, str, int]] = []
 
     for title, qid in title_to_id.items():
@@ -241,10 +227,6 @@ def _write_to_db(
         for alias in id_to_attrs[qid]["aliases"]:
             aliases_for_entities.append((alias, qid, 1))
 
-        for prop in id_to_attrs[qid]["properties"]:
-            for second_qid in prop[1]:
-                props_in_ents.add((prop[0], qid, second_qid))
-
     cur = db_conn.cursor()
     cur.executemany(
         "INSERT INTO entities (id) VALUES (?)",
@@ -254,10 +236,6 @@ def _write_to_db(
         "INSERT INTO entities_texts (entity_id, name, description, label) VALUES (?, ?, ?, ?)",
         entities_texts,
     )
-    # cur.executemany(
-    #     "INSERT INTO properties_in_entities (property_id, from_entity_id, to_entity_id) VALUES (?, ?, ?)",
-    #     props_in_ents,
-    # )
     cur.executemany(
         """
         INSERT INTO aliases_for_entities (alias, entity_id, count) VALUES (?, ?, ?)
@@ -276,7 +254,7 @@ def extract_demo_dump(
     at location filtered_dump_path.
     in_dump_path (Path): Path to complete Wikidata dump.
     out_dump_path (Path): Path to filtered Wikidata dump.
-    filter_terms (Set[str]): Terms having to appear in entity descriptions in order to be included in output dump.
+    filter_terms (Set[str]): Terms having to appear in qid descriptions in order to be included in output dump.
     RETURNS (Tuple[Set[str], Set[str]]): For retained entities: (1) set of QIDs, (2) set of labels (should match article
         titles).
     """
@@ -288,9 +266,7 @@ def extract_demo_dump(
     with bz2.open(in_dump_path, mode="rb") as in_file:
         with bz2.open(out_dump_path, mode="wb") as out_file:
             write_count = 0
-            with tqdm.tqdm(
-                desc="Filtering entity data", leave=True, miniters=100
-            ) as pbar:
+            with tqdm.tqdm(desc="Filtering qid data", leave=True, miniters=100) as pbar:
                 for cnt, line in enumerate(in_file):
                     keep = cnt == 0
 

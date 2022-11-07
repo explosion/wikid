@@ -8,8 +8,11 @@ import numpy
 import spacy
 import tqdm
 import typer
+
+# from annoy import AnnoyIndex
 from spacy.kb import KnowledgeBase
-import wiki
+from extraction import get_paths, load_entities, load_alias_entity_prior_probabilities
+from kb import WikiKB
 
 
 def main(vectors_model: str, language: str):
@@ -18,13 +21,26 @@ def main(vectors_model: str, language: str):
     vectors_model (str): Name of model with word vectors to use.
     """
 
+    # u = AnnoyIndex(300, 'dot')
+    # u.load("/home/raphael/dev/wikid/output/en/wiki.annoy")
+    # print(u.get_nns_by_item(1, 50))
+    # exit()
+
+    import sqlite3
+    import sqlite_spellfix
+
+    conn = sqlite3.connect("/home/raphael/dev/wikid/output/en/_wiki.sqlite3")
+    conn.enable_load_extension(True)
+    conn.load_extension(sqlite_spellfix.extension_path())
+    conn.execute("CREATE VIRTUAL TABLE demo USING spellfix1;")
+    exit()
     logger = logging.getLogger(__name__)
     nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
 
-    wkb = wiki.kb.WikiKB(
+    wkb = WikiKB(
         nlp.vocab,
         nlp.config["components"]["tok2vec"]["model"]["encode"]["width"],
-        wiki.get_paths(language)["db"],
+        get_paths(language)["db"],
         language,
     )
     wkb.infer_embeddings(nlp)
@@ -34,7 +50,7 @@ def main(vectors_model: str, language: str):
     entity_list: List[str] = []
     count_list: List[int] = []
     vector_list: List[numpy.ndarray] = []  # type: ignore
-    entities = wiki.load_entities(language=language)
+    entities = load_entities(language=language)
 
     # Infer vectors for entities' descriptions.
     desc_vectors = [
@@ -74,9 +90,7 @@ def main(vectors_model: str, language: str):
     )
 
     # Add aliases with normalized priors to KB. This won't be necessary with a custom KB.
-    alias_entity_prior_probs = wiki.load_alias_entity_prior_probabilities(
-        language=language
-    )
+    alias_entity_prior_probs = load_alias_entity_prior_probabilities(language=language)
     for alias, entity_prior_probs in alias_entity_prior_probs.items():
         kb.add_alias(
             alias=alias,
@@ -100,4 +114,4 @@ def main(vectors_model: str, language: str):
 
 if __name__ == "__main__":
     typer.run(main)
-    # main("en_core_web_sm", "en")
+    # main("en_core_web_lg", "en")

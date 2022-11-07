@@ -8,7 +8,7 @@ from pydantic.types import StrictInt
 
 
 class Entity(BaseModel):
-    """Schema for single entity."""
+    """Schema for single qid."""
 
     qid: str = Field(..., title="Wiki QID.")
     name: str = Field(..., title="Entity name.")

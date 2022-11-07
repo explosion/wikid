@@ -61,9 +61,9 @@ category_regex = re.compile(cats)
 
 def _read_entity_title_id_map(db_conn: sqlite3.Connection) -> Dict[str, str]:
     """
-    Read entity title to ID map from database.
+    Read qid title to ID map from database.
     db_conn (sqlite3.Connection): DB connection.
-    RETURNS (Dict[str, str]): Map from entity title to ID.
+    RETURNS (Dict[str, str]): Map from qid title to ID.
     """
 
     return {
@@ -77,7 +77,7 @@ def _read_entity_title_id_map(db_conn: sqlite3.Connection) -> Dict[str, str]:
             INNER JOIN entities_texts et ON
                 et.ROWID = e.ROWID
         """
-        )
+        ).fetchall()
     }
 
 
@@ -94,22 +94,22 @@ def read_prior_probs(
     wikipedia_input_path (Union[str, Path]): Path to Wikipedia dump.
     batch_size (int): DB batch size.
     db_conn (sqlite3.Connection): Database connection.
-    n_article_limit (Optional[int]): Number of articles/entities to process.
+    n_article_limit (Optional[int]): Number of articles to process.
     """
 
-    read_id = False
-    current_article_id = None
     entity_title_to_id = _read_entity_title_id_map(db_conn)
 
     def write_to_db(_aliases_for_entities) -> None:
         """Writes record triples to DB.
-        __aliases_for_entities (): alias-entity-frequency triples.
+        __aliases_for_entities (): alias-qid-frequency triples.
         """
         db_conn.cursor().executemany(
             """
-            INSERT INTO aliases_for_entities (alias, entity_id, count) VALUES (?, ?, ?)
-            ON CONFLICT (alias, entity_id) DO UPDATE SET
-                count=count + excluded.count
+            UPDATE aliases_for_entities
+            SET
+                count=count + ?
+            WHERE
+                alias=? AND entity_id=?
             """,
             _aliases_for_entities,
         )
@@ -118,49 +118,33 @@ def read_prior_probs(
     with bz2.open(wikipedia_input_path, mode="rb") as file:
         pbar_params = {"total": limit} if limit else {}
         with tqdm.tqdm(
-            desc="Parsing alias-entity prior probabilities", **pbar_params
+            desc="Parsing alias-qid prior probabilities", **pbar_params
         ) as pbar:
             line = file.readline()
             while line and (not limit or pbar.n < limit):
                 clean_line = line.strip().decode("utf-8")
-
-                # we attempt at reading the article's ID (but not the revision or contributor ID)
-                if "<revision>" in clean_line or "<contributor>" in clean_line:
-                    read_id = False
-                if "<page>" in clean_line:
-                    read_id = True
-
-                if read_id:
-                    ids = id_regex.search(clean_line)
-                    if ids:
-                        current_article_id = ids[0]
-
-                # only processing prior probabilities from true training (non-dev) articles
-                if not is_dev(current_article_id):
-                    aliases, entities, normalizations = _get_wp_links(clean_line)
-                    for alias, entity_title, norm in zip(
-                        aliases, entities, normalizations
-                    ):
-                        _store_alias(
-                            alias,
-                            entity_title,
-                            normalize_alias=norm,
-                            normalize_entity=True,
-                        )
+                aliases, entities, normalizations = _get_wp_links(clean_line)
+                for alias, entity_title, norm in zip(aliases, entities, normalizations):
+                    _store_alias(
+                        alias,
+                        entity_title,
+                        normalize_alias=norm,
+                        normalize_entity=True,
+                    )
 
                 line = file.readline()
                 pbar.update(1)
 
     # write all aliases and their entities and count occurrences to file
     with tqdm.tqdm(
-        desc="Persisting alias-entity prior probabilities", total=len(map_alias_to_link)
+        desc="Persisting alias-qid prior probabilities", total=len(map_alias_to_link)
     ) as pbar:
-        aliases_for_entities: List[Tuple[str, str, int]] = []
+        aliases_for_entities: List[Tuple[int, str, str]] = []
         for alias, alias_dict in map_alias_to_link.items():
             for entity_title, count in alias_dict.items():
                 if entity_title in entity_title_to_id:
                     aliases_for_entities.append(
-                        (alias, entity_title_to_id[entity_title], count)
+                        (count, alias, entity_title_to_id[entity_title])
                     )
             if pbar.n % batch_size == 0:
                 write_to_db(aliases_for_entities)
@@ -182,7 +166,7 @@ def _store_alias(
     alias (str): Alias text.
     entity_title (str): Entity title.
     normalize_alias (bool): Whether to normalize the alias text, i.e. remove anchors.
-    normalize_entity (bool): Whether to normalize the entity title.
+    normalize_entity (bool): Whether to normalize the qid title.
     """
     alias = alias.strip()
     entity_title = entity_title.strip()
@@ -204,7 +188,7 @@ def _store_alias(
 def _get_wp_links(text: str) -> Tuple[List[str], List[str], List[bool]]:
     """Retrieve interwiki links from text.
     text (str): Text to parse.
-    RETURNS (Tuple[List[str], List[str], List[bool]]): List of aliases, entity titles, and whether normalization they
+    RETURNS (Tuple[List[str], List[str], List[bool]]): List of aliases, qid titles, and whether normalization they
         were normalized.
     """
     aliases: List[str] = []
@@ -270,7 +254,7 @@ def read_texts(
     db_conn (sqlite3.Connection): DB connection.
     limit (Optional[int]): Max. number of articles to process. If None, all are processed.
     n_char_limit (Optional[int]): Max. number of characters to process per article.
-    lang (str): Language with which to filter entity information.
+    lang (str): Language with which to filter qid information.
     """
     read_ids: Set[str] = set()
     entity_title_to_id = _read_entity_title_id_map(db_conn)
@@ -286,8 +270,8 @@ def read_texts(
         _article_text_records: List[Tuple[str, str, str]],
     ) -> None:
         """Writes records to list.
-        _article_records (List[Tuple[str, str]]): `articles`entries with entity ID, ID.
-        _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with entity ID, title, content.
+        _article_records (List[Tuple[str, str]]): `articles`entries with qid ID, ID.
+        _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with qid ID, title, content.
         """
         db_conn.cursor().executemany(
             "INSERT INTO articles (entity_id, id) VALUES (?, ?)",
@@ -428,7 +412,7 @@ def read_texts(
         f"Processed {n_articles} articles.\n  "
         f"Of which viable (with article ID and text): {n_viable_articles} ({n_viable_articles / n_articles * 100:.2f}%)"
         f"\n    "
-        f"Of which processed (title in entity table): {pbar.n} ({pbar.n / n_viable_articles * 100:.2f}%)"
+        f"Of which processed (title in qid table): {pbar.n} ({pbar.n / n_viable_articles * 100:.2f}%)"
     )
 
 
@@ -489,7 +473,7 @@ def _process_wp_text(
     """Process article text.
     article_title (str): Article title.
     article_text (str): Article text.
-    entity_title_to_id (Dict[str, str]): Map for entity/article titles to their IDs.
+    entity_title_to_id (Dict[str, str]): Map for qid/article titles to their IDs.
     RETURNS (Tuple[Optional[str], Optional[List[Tuple[str, Any, int, int]]]]): Cleaned text and list of entities in
         article text.
     """
@@ -579,7 +563,7 @@ def _remove_links(
 ) -> Tuple[Optional[str], Optional[List[Tuple[str, Any, int, int]]]]:
     """Remove links from clean text.
     clean_text (str): Cleaned article text.
-    entity_title_to_id (Dict[str, str]): Map for entity/article titles to their IDs.
+    entity_title_to_id (Dict[str, str]): Map for qid/article titles to their IDs.
     RETURNS (Tuple[Optional[str], Optional[List[Tuple[str, Any, int, int]]]]): Cleaned text without links, information
         on entities in text.
     """

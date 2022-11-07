@@ -1,7 +1,8 @@
 """ Parsing of Wiki dump and persisting of parsing results to DB. """
 from typing import Optional
 import typer
-from wiki import parse
+
+from extraction import parse
 
 
 def main(
@@ -19,8 +20,8 @@ def main(
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
     use_filtered_dumps (bool): Whether to use filtered Wiki dumps instead of the full ones.
     entity_limit (Optional[int]): Max. number of entities to parse. Unlimited if None.
-    article_limit (Optional[int]): Max. number of entities to parse. Unlimited if None.
-    alias_limit (Optional[int]): Max. number of entity aliases to parse. Unlimited if None.
+    article_limit (Optional[int]): Max. number of articles to parse. Unlimited if None.
+    alias_limit (Optional[int]): Max. number of qid aliases to parse. Unlimited if None.
     """
 
     parse(
@@ -33,4 +34,11 @@ def main(
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    parse(
+        language="en",
+        use_filtered_dumps=False,
+        entity_config={"limit": None},
+        article_text_config={"limit": None},
+        alias_prior_prob_config={"limit": None},
+    )
+    # typer.run(main)

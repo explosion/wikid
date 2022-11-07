@@ -4,3 +4,4 @@ pyyaml
 tqdm
 prettytable
 annoy
+sqlite-spellfix

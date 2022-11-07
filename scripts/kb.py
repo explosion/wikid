@@ -3,12 +3,13 @@ from pathlib import Path
 from typing import Iterable, Iterator, Tuple, Union, Optional
 
 import annoy
-import numpy
 import tqdm
 from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
+
+from extraction.utils import establish_db_connection, load_entities
 
 
 class WikiKB(KnowledgeBase):
@@ -29,15 +30,16 @@ class WikiKB(KnowledgeBase):
         n_trees (int): Number of trees in Annoy index. Precision in NN queries correspond with number of trees.
         """
         super().__init__(vocab, vocab.vectors_length)
+
         self._paths = {"db": db_path, "vectors_ann": db_path.parent / "wiki.annoy"}
         self._language = language
         self._vector_length = vector_length
         self._vectors_ann: Optional[annoy.AnnoyIndex] = None
         self._n_trees = n_trees
+        self._db_conn = establish_db_connection(language)
 
         # todo set up everything needed to integrate WikiKB into benchmark
         #   - init from  database
-        #   - replace old-style KB with WikiKB
         #   - implement serialization methods
         #   - start with dummy method returning nothing
         #   - NN search with annoy
@@ -51,29 +53,45 @@ class WikiKB(KnowledgeBase):
         """
 
         logger = logging.getLogger(__name__)
-        logger.info("Loading entities")
-        from . import (
-            load_entities,
-        )  # todo refactor so that local import isn't necessary + refactor wiki source in
 
-        #   general (which subdirs?).
-        # todo load entities batch-wise in loop (load QIDs first, order by ROWID)
-        entities = load_entities(language=self._language)
-        qids = list(entities.keys())
-
-        # Construct ANN index.
-        self._vectors_ann = annoy.AnnoyIndex(self._vector_length, "dot")
-        self._vectors_ann.on_disk_build(str(self._paths["vectors_ann"]))
+        # Initialize ANN index.
+        # self._vectors_ann = annoy.AnnoyIndex(self._vector_length, "dot")
+        # self._vectors_ann.on_disk_build(str(self._paths["vectors_ann"]))
         batch_size = 100000
-        i = 0
 
-        for batch_i in tqdm.tqdm(
-            range(0, len(qids), batch_size),
+        row_count = (
+            self._db_conn.cursor()
+            .execute("SELECT count(*) FROM entities")
+            .fetchone()["count(*)"]
+        )
+        for row_id in tqdm.tqdm(
+            # We select by ROWID, which starts at 1.
+            range(1, row_count + 1, batch_size),
             desc="Inferring entity embeddings",
             position=0,
         ):
-            batch_qids = qids[batch_i : batch_i + batch_size]
-            texts = [
+            ids = tuple(
+                (row["id"], row["ROWID"])
+                for row in self._db_conn.cursor()
+                .execute(
+                    f"""
+                        SELECT
+                            id,
+                            ROWID
+                        FROM
+                            entities
+                        WHERE
+                            ROWID BETWEEN {row_id} AND {row_id + batch_size - 1}
+                        ORDER BY
+                            ROWID
+                        """
+                )
+                .fetchall()
+            )
+            qids = tuple(_id[0] for _id in ids)
+            entities = load_entities(language=self._language, qids=qids)
+
+            ent_descs = [
                 entities[qid].name
                 + " "
                 + (" ".join(entities[qid].aliases) if entities[qid].aliases else "")
@@ -87,29 +105,36 @@ class WikiKB(KnowledgeBase):
                         else entities[qid].name
                     )
                 )
-                for qid in batch_qids
+                for qid in qids
             ]
 
-            for qid, desc_vector in zip(
-                batch_qids, [doc.vector for doc in nlp.pipe(texts=texts, n_process=-1)]
-            ):
-                self._vectors_ann.add_item(
-                    i,
-                    desc_vector
-                    if isinstance(desc_vector, numpy.ndarray)
-                    else desc_vector.get(),
-                )
-                i += 1
+            docs = nlp.pipe(texts=ent_descs, n_process=-1)
+            print(len(docs))
+
+            # for qid, desc_vector in zip(
+            #     qids,
+            #     [
+            #         ent_desc_doc.vector
+            #         for ent_desc_doc in nlp.pipe(texts=ent_descs, n_process=-1)
+            #     ],
+            # ):
+            #     self._vectors_ann.add_item(
+            #         i,
+            #         desc_vector
+            #         if isinstance(desc_vector, numpy.ndarray)
+            #         else desc_vector.get(),
+            #     )
+            #     i += 1
 
         logger.info("Building ANN index.")
-        self._vectors_ann.build(self._n_trees, -1)
+        # self._vectors_ann.build(self._n_trees, -1)
 
     def get_candidates_all(
         self, mentions: Iterator[Iterable[Span]]
     ) -> Iterator[Iterable[Iterable[Candidate]]]:
         """
-        Return candidate entities for specified texts. Each candidate defines the entity, the original alias,
-        and the prior probability of that alias resolving to that entity.
+        Return candidate entities for specified texts. Each candidate defines the qid, the original alias,
+        and the prior probability of that alias resolving to that qid.
         If no candidate is found for a given text, an empty list is returned.
         mentions (Generator[Iterable[Span]]): Mentions per documents for which to get candidates.
         RETURNS (Generator[Iterable[Iterable[Candidate]]]): Identified candidates per document.
@@ -119,27 +144,27 @@ class WikiKB(KnowledgeBase):
 
     def get_candidates(self, mention: Span) -> Iterable[Candidate]:
         """
-        Return candidate entities for specified text. Each candidate defines the entity, the original alias,
-        and the prior probability of that alias resolving to that entity.
+        Return candidate entities for specified text. Each candidate defines the qid, the original alias,
+        and the prior probability of that alias resolving to that qid.
         If the no candidate is found for a given text, an empty list is returned.
         mention (Span): Mention for which to get candidates.
         RETURNS (Iterable[Candidate]): Identified candidates.
         """
         raise NotImplementedError
 
-    def get_vectors(self, entities: Iterable[str]) -> Iterable[Iterable[float]]:
+    def get_vectors(self, qids: Iterable[str]) -> Iterable[Iterable[float]]:
         """
-        Return vectors for entities.
-        entity (str): Entity name/ID.
+        Return vectors for qids.
+        qids (str): Wiki QIDs.
         RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
         """
-        return [self.get_vector(entity) for entity in entities]
+        return [self.get_vector(qid) for qid in qids]
 
-    def get_vector(self, entity: str) -> Iterable[float]:
+    def get_vector(self, qid: str) -> Iterable[float]:
         """
-        Return vector for entity.
-        entity (str): Entity name/ID.
-        RETURNS (Iterable[float]): Vector for specified entity.
+        Return vector for qid.
+        qid (str): Wiki QID.
+        RETURNS (Iterable[float]): Vector for specified entities.
         """
         raise NotImplementedError
 

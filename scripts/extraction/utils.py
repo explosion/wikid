@@ -1,9 +1,9 @@
-""" Wiki dataset for unified access to information from Wikipedia and Wikidata dumps. """
 import os.path
-import pickle
 from pathlib import Path
-from typing import Dict, Any, Tuple, List, Set, Optional
+from typing import Dict, Any, Tuple, List, Optional
 import sqlite3
+
+import sqlite_spellfix
 
 from . import schemas
 from . import wikidata
@@ -36,30 +36,14 @@ def establish_db_connection(language: str) -> sqlite3.Connection:
     db_path = get_paths(language)["db"]
     os.makedirs(db_path.parent, exist_ok=True)
     db_conn = sqlite3.connect(get_paths(language)["db"])
+
+    # Use row factory to obtain records as dicts.
     db_conn.row_factory = sqlite3.Row
+    # Enable spellfix1 for fuzzy search (https://sqlite.org/spellfix1.html).
+    db_conn.enable_load_extension(True)
+    db_conn.load_extension(sqlite_spellfix.extension_path())
+
     return db_conn
-
-
-def extract_demo_dump(filter_terms: Set[str], language: str) -> None:
-    """Extracts small demo dump by parsing the Wiki dumps and keeping only those entities (and their articles)
-    containing any of the specified filter_terms. The retained entities and articles are written into intermediate
-    files.
-    filter_terms (Set[str]): Terms having to appear in entity descriptions in order to be wrr
-    language (str): Language.
-    """
-
-    _paths = get_paths(language)
-    entity_ids, entity_labels = wikidata.extract_demo_dump(
-        _paths["wikidata_dump"], _paths["filtered_wikidata_dump"], filter_terms
-    )
-    with open(_paths["filtered_entity_entity_info"], "wb") as file:
-        pickle.dump((entity_ids, entity_labels), file)
-
-    with open(_paths["filtered_entity_entity_info"], "rb") as file:
-        _, entity_labels = pickle.load(file)
-    wikipedia.extract_demo_dump(
-        _paths["wikipedia_dump"], _paths["filtered_wikipedia_dump"], entity_labels
-    )
 
 
 def parse(
@@ -94,6 +78,9 @@ def parse(
         db_conn,
         **(entity_config if entity_config else {}),
         lang=language,
+        parse_properties=False,
+        parse_claims=False,
+        parse_sitelinks=False,
     )
 
     wikipedia.read_prior_probs(
@@ -118,10 +105,10 @@ def load_entities(
     qids: Tuple[str, ...] = tuple(),
     db_conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, schemas.Entity]:
-    """Loads information for entity or entities by querying information from DB.
+    """Loads information for entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
     language (str): Language.
-    qids (Tuple[str]): QIDS to look up. If empty, all entities are loaded.
+    qids (Tuple[str]): QIDS to look up. If empty, all qids are loaded.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     RETURNS (Dict[str, Entity]): Information on requested entities.
     """
@@ -188,7 +175,7 @@ def load_entities(
 def load_alias_entity_prior_probabilities(
     language: str, db_conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, List[Tuple[str, float]]]:
-    """Loads alias-entity counts from database and transforms them into prior probabilities per alias.
+    """Loads alias-qid counts from database and transforms them into prior probabilities per alias.
     language (str): Language.
     RETURN (Dict[str, Tuple[Tuple[str, ...], Tuple[float, ...]]]): Mapping of alias to tuples of entities and the
         corresponding prior probabilities.
