@@ -61,7 +61,7 @@ def main(vectors_model: str, language: str):
 
     # Add aliases with normalized priors to KB. This won't be necessary with a custom KB.
     alias_entity_prior_probs = wiki.load_alias_entity_prior_probabilities(
-        set(entities.keys()), language=language
+        language=language
     )
     for alias, entity_prior_probs in alias_entity_prior_probs.items():
         kb.add_alias(
