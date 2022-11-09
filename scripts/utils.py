@@ -16,7 +16,6 @@ def get_logger(handle: str) -> logging.Logger:
     handle (str): Logger handle.
     RETURNS (logging.Logger): Logger.
     """
-
     return logging.getLogger(handle)
 
 

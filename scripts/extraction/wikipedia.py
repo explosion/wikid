@@ -1,7 +1,7 @@
 """ Functionalities for processing Wikipedia dump.
 Modified from https://github.com/explosion/projects/blob/master/nel-wikipedia/wikipedia_processor.py.
 """
-
+import io
 import re
 import bz2
 import sqlite3
@@ -84,7 +84,7 @@ def _read_entity_title_id_map(db_conn: sqlite3.Connection) -> Dict[str, str]:
 def read_prior_probs(
     wikipedia_input_path: Union[str, Path],
     db_conn: sqlite3.Connection,
-    batch_size: int = 5000,
+    batch_size: int = 20000,
     limit: Optional[int] = None,
 ) -> None:
     """
@@ -109,7 +109,8 @@ def read_prior_probs(
             SET
                 count=count + ?
             WHERE
-                alias=? AND entity_id=?
+                alias=? AND
+                entity_id=?
             """,
             _aliases_for_entities,
         )
@@ -120,8 +121,9 @@ def read_prior_probs(
         with tqdm.tqdm(
             desc="Parsing alias-qid prior probabilities", **pbar_params
         ) as pbar:
-            line = file.readline()
-            while line and (not limit or pbar.n < limit):
+            for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):
+                if limit and pbar.n >= limit:
+                    break
                 clean_line = line.strip().decode("utf-8")
                 aliases, entities, normalizations = _get_wp_links(clean_line)
                 for alias, entity_title, norm in zip(aliases, entities, normalizations):
@@ -245,7 +247,7 @@ def read_texts(
     db_conn: sqlite3.Connection,
     batch_size: int = 10000,
     limit: Optional[int] = None,
-    n_char_limit: int = 1000,
+    n_char_limit: int = 600,
     lang: str = "en",
 ) -> None:
     """
@@ -304,7 +306,7 @@ def read_texts(
                 skip_terms = set(yaml.safe_load(stream)[lang])
             skip_article = False
 
-            for line in file:
+            for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):
                 if limit and pbar.n >= limit:
                     break
 

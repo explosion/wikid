@@ -9,6 +9,7 @@
 --     the sequential nature of our Wiki parsing: first the Wikidata dump (entities) are read and stored in the DB, then the
 --     Wikipedia dump (articles). We could update the entities table, but this is less efficient than inserting new
 --     records. If profiling shows this not to be a bottleneck, we may reconsider merging these two tables.
+-- See also https://www.sqlite.org/fts5.html.
 
 CREATE TABLE entities (
     -- Equivalent to Wikidata QID.
@@ -49,9 +50,15 @@ CREATE VIRTUAL TABLE articles_texts USING fts5(
     content
 );
 
+-- Virtual table for aliases, capable of on-disk fuzzy matching.
+-- https://sqlite.org/spellfix1.html
+-- This duplicates aliases also in aliases_for_entities. A better long-term solution would be to reference aliases in
+-- this table via their ROWID, but requires more involved ways to insert and query data to ensure data integrity (the
+-- spellfix table can't have additional indices, just like FTS5).
+CREATE VIRTUAL TABLE aliases USING spellfix1;
 
 CREATE TABLE aliases_for_entities (
-    -- Alias for qid label.
+    -- Alias' row ID for entity label.
     alias TEXT NOT NULL,
     -- Equivalent to Wikidata QID.
     entity_id TEXT NOT NULL,
