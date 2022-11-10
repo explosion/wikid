@@ -34,11 +34,4 @@ def main(
 
 
 if __name__ == "__main__":
-    parse(
-        language="en",
-        use_filtered_dumps=False,
-        entity_config={"limit": None},
-        article_text_config={"limit": None},
-        alias_prior_prob_config={"limit": None},
-    )
-    # typer.run(main)
+    typer.run(main)

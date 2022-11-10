@@ -124,6 +124,7 @@ def read_prior_probs(
             for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):
                 if limit and pbar.n >= limit:
                     break
+
                 clean_line = line.strip().decode("utf-8")
                 aliases, entities, normalizations = _get_wp_links(clean_line)
                 for alias, entity_title, norm in zip(aliases, entities, normalizations):
@@ -134,7 +135,6 @@ def read_prior_probs(
                         normalize_entity=True,
                     )
 
-                line = file.readline()
                 pbar.update(1)
 
     # write all aliases and their entities and count occurrences to file

@@ -6,6 +6,7 @@ import sqlite3
 import sqlite_spellfix
 
 from . import schemas
+from . import wikidata
 from . import wikipedia
 
 
@@ -63,72 +64,31 @@ def parse(
     """
 
     _paths = get_paths(language)
-    # msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
-    # assert not os.path.exists(_paths["db"]), msg
+    msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
+    assert not os.path.exists(_paths["db"]), msg
 
     db_conn = db_conn if db_conn else establish_db_connection(language)
-    # with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
-    #     db_conn.cursor().executescript(ddl_sql.read())
+    with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
+        db_conn.cursor().executescript(ddl_sql.read())
 
-    # import time
+    wikidata.read_entities(
+        _paths["wikidata_dump"]
+        if not use_filtered_dumps
+        else _paths["filtered_wikidata_dump"],
+        db_conn,
+        **(entity_config if entity_config else {}),
+        lang=language,
+        parse_properties=False,
+        parse_claims=False,
+    )
 
-    # start = time.time()
-    # res = [
-    #     dict(row) for row in
-    #     db_conn.cursor().execute("""
-    #         select
-    #             ae.entity_id,
-    #             ae.count,
-    #             a.*
-    #         from
-    #             aliases a
-    #         inner join aliases_for_entities ae on
-    #             ae.alias = a.word
-    #         where
-    #             a.word match 'ab'
-    #     """).fetchall()
-    # ]
-    # todo also consider count in ranking?
-    # res = [
-    #     dict(row) for row in
-    #     db_conn.cursor().execute("""
-    #         select
-    #             ae.entity_id,
-    #             min(a.distance),
-    #             sum(ae.count)
-    #         from
-    #             aliases a
-    #         inner join aliases_for_entities ae on
-    #             ae.alias = a.word
-    #         where
-    #             a.word match 'ab'
-    #         group by
-    #             ae.entity_id
-    #         order by
-    #             min(a.distance), sum(ae.count)
-    #     """).fetchall()
-    # ]
-    # duration = time.time() - start
-    # exit(0)
-
-    # wikidata.read_entities(
-    #     _paths["wikidata_dump"]
-    #     if not use_filtered_dumps
-    #     else _paths["filtered_wikidata_dump"],
-    #     db_conn,
-    #     **(entity_config if entity_config else {}),
-    #     lang=language,
-    #     parse_properties=False,
-    #     parse_claims=False,
-    # )
-
-    # wikipedia.read_prior_probs(
-    #     _paths["wikipedia_dump"]
-    #     if not use_filtered_dumps
-    #     else _paths["filtered_wikipedia_dump"],
-    #     db_conn,
-    #     **(alias_prior_prob_config if alias_prior_prob_config else {}),
-    # )
+    wikipedia.read_prior_probs(
+        _paths["wikipedia_dump"]
+        if not use_filtered_dumps
+        else _paths["filtered_wikipedia_dump"],
+        db_conn,
+        **(alias_prior_prob_config if alias_prior_prob_config else {}),
+    )
 
     wikipedia.read_texts(
         _paths["wikipedia_dump"]

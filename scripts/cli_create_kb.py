@@ -1,10 +1,10 @@
 """Functionality for creating the knowledge base from downloaded assets and by querying Wikipedia's API."""
 # import logging
 
-import spacy
-
-from extraction import get_paths
-from kb import WikiKB
+# import spacy
+#
+# from extraction import get_paths
+# from kb import WikiKB
 
 
 def main(vectors_model: str, language: str):
@@ -19,21 +19,26 @@ def main(vectors_model: str, language: str):
     # exit()
 
     # logger = logging.getLogger(__name__)
-    nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
-
-    wkb = WikiKB(
-        nlp.vocab,
-        get_paths(language)["db"],
-        get_paths(language)["db"].parent / "wiki.annoy",
-        language,
-    )
-    doc = nlp(
-        "Barack Obama is the 44th president of the United States. He was born in Hawaii. He is the first black "
-        "president of the US."
-    )
-    mentions = [doc[0:2], doc[4:6], doc[4:10], doc[8:10], doc[-2]]
-    print(mentions)
-    wkb.get_candidates_all([mentions])
+    # nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
+    #
+    # wkb = WikiKB(
+    #     nlp.vocab,
+    #     get_paths(language)["db"],
+    #     get_paths(language)["db"].parent / "wiki.annoy",
+    #     language,
+    # )
+    # doc = nlp(
+    #     "Barack Obama is the 44th president of the United States. He was born in Hawaii. He is the first black "
+    #     "president of the US."
+    # )
+    # mentions1 = [doc[0:2], doc[4:6], doc[4:10], doc[8:10], doc[-2]]
+    # doc = nlp(
+    #     "The New York Knicks played the Boston Celtics today. New York beat Boston by 12 points."
+    # )
+    # mentions2 = [doc[1:4], doc[6:8], doc[10:12], doc[13:14]]
+    # print(mentions2)
+    # # wkb.get_candidates_all([mentions1])
+    # wkb.get_candidates_all([mentions2])
 
     # logger.info("Constructing knowledge base.")
     # kb = KnowledgeBase(vocab=nlp.vocab, entity_vector_length=nlp.vocab.vectors_length)
