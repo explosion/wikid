@@ -2,6 +2,8 @@ import hashlib
 import logging
 import os.path
 import pickle
+
+# import time
 from itertools import chain
 from pathlib import Path
 from typing import Iterable, Iterator, Tuple, Union, Optional, Dict, Any, List
@@ -29,8 +31,9 @@ class WikiKB(KnowledgeBase):
         annoy_path: Path,
         language: str,
         n_trees: int = 50,
-        top_k_alias: int = 5,
-        top_k_fts: int = 5,
+        top_k_aliases: int = 5,
+        top_k_entities_alias: int = 20,
+        top_k_entities_fts: int = 5,
         threshold_alias: int = 100,
         threshold_fts: float = 10.0,
     ):
@@ -42,11 +45,13 @@ class WikiKB(KnowledgeBase):
         language (str): Language.
         n_trees (int): Number of trees in Annoy index. Precision in NN queries correspond with number of trees. Ignored
             if Annoy index file already exists.
-        top_k_alias (int): Number of fuzzy alias matches to consider (best k out of all matches). An alias may be
-            associated with an arbitrary number of entities, so top_k_alias does not necessarily equal the number of
-            candidate entities.
-        top_k_fts (int): Number of full-text search matches to consider (best k out of all matches). Equals number of
-            candidate entities.
+        top_k_aliases (int): Top k aliases matches to consider. An alias may be associated with more than one entity, so
+            this parameter does _not_ necessarily correspond to the the maximum number of identified candidates. For
+            that use top_k_alias_entity.
+        top_k_alias_entity (int): Top k entities to consider in list of alias matches. Equals maximum number of
+            candidate entities found via alias search.
+        top_k_entities_fts (int): Top k of full-text search matches to consider. Equals maximum number of candidate entities
+            found via full-text search.
         threshold_alias (int): Threshold for alias distance as calculated by spellfix1.
         threshold_fts (int): Threshold for full-text search distance as calculated by FTS5.
         """
@@ -59,19 +64,14 @@ class WikiKB(KnowledgeBase):
         self._db_conn = establish_db_connection(language)
         self._embedding_dim = self.entity_vector_length
         self._hashes: Dict[str, Optional[str]] = {}
-        self._top_k_alias = top_k_alias
-        self._top_k_fts = top_k_fts
+        self._top_k_aliases = top_k_aliases
+        self._top_k_entities_alias = top_k_entities_alias
+        self._top_k_entities_fts = top_k_entities_fts
         self._threshold_alias = threshold_alias
         self._threshold_fts = threshold_fts
 
         if os.path.exists(self._paths["annoy"]):
             self._init_annoy_from_file()
-
-        # todo set up everything needed to integrate WikiKB into benchmark
-        #   - get_candidates:
-        #       - NN search with annoy
-        #       - fuzzy match in label + aliases
-        #       - BM25 search in descriptions
 
     def build_embeddings_index(self, nlp: Language) -> None:
         """Constructs index for embeddings with Annoy and stores them in an index file.
@@ -163,67 +163,21 @@ class WikiKB(KnowledgeBase):
         RETURNS (Generator[Iterable[Iterable[Candidate]]]): Identified candidates per document.
         """
 
-        # todo
-        #   - alt 1:
-        #       1. fuzzy alias search
-        #       2. FTS search
-        #   - alt 2:
-        #       1. embedding ANN search
-        #   - for both: beam search
-        # todo assemble one query with UNION ALL and additional (constant) ID column.
-        # todo consider entity-alias prior count in ranking/at least extract them.
         for mentions_in_doc in mentions:
             pass
             # start = time.time()
-            # alias_matches = self._fetch_candidates_by_alias(mentions_in_doc)
+            # alias_matches = self._fetch_candidates_by_alias(tuple(mentions_in_doc))
             # duration_alias = time.time() - start
             #
             # start = time.time()
-            # fts_matches = self._fetch_candidates_by_fts(mentions_in_doc)
-            # duration_fts = time.time() - start
-
-            # start = time.time()
-            # embedding_matches = self._fetch_candidates_by_embedding(mentions_in_doc)
+            # fts_matches = self._fetch_candidates_by_fts(tuple(mentions_in_doc))
             # duration_fts = time.time() - start
 
             # yield [self.get_candidates(span) for span in doc_mentions]
 
-    def _fetch_candidates_by_embedding(
-        self, mentions: Tuple[Span, ...]
-    ) -> List[Dict[str, Any]]:
-        """Fetches candidates by ANN search in the embedding space.
-        mentions (Tuple[Span, ...]): List of mentions for which to fetch candidates.
-        RETURN (List[Dict[str, Any]]): List with candidiates, sorted by (1) mention, (2) distance to mention, (3)
-            occurence count in Wikipedia.
-        """
-
-        for mention in mentions:
-            center = numpy.mean([mention.vector for mention in mentions], axis=0)
-            target = (center + mention.vector) / 2
-            nns = self._annoy.get_nns_by_vector(
-                vector=target, n=100, search_k=1000, include_distances=True
-            )
-
-            for nn_idx, nn_dist in zip(nns[0], nns[1]):
-                pass
-                # rows = [
-                #     dict(row)
-                #     for row in self._db_conn.execute(
-                #         f"""
-                #             SELECT
-                #                 et.*,
-                #                 {nn_dist} as dist
-                #             FROM
-                #                 entities_texts et
-                #             WHERE
-                #                 et.ROWID = {nn_idx - 1}
-                #         """
-                #     ).fetchall()
-                # ]
-
     def _fetch_candidates_by_alias(
         self, mentions: Tuple[Span, ...]
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, Union[str, int, float]]]:
         """Fetches candidates for mentions by fuzzily matching aliases to the mentions.
         mentions (Tuple[Span, ..]): List of mentions for which to fetch candidates.
         RETURN (List[Dict[str, Any]]): List with candidiates, sorted by (1) mention, (2) distance to mention, (3)
@@ -231,20 +185,9 @@ class WikiKB(KnowledgeBase):
         """
         # Subquery to fetch alias values for single mention.
         mention_subquery = f"""
-            SELECT
-                alias, 0 as distance, null as score
-            FROM
-                aliases_for_entities
-            WHERE
-                alias = ?
+            SELECT alias, 0 as distance, null as score FROM aliases_for_entities WHERE alias = ?
             UNION
-            SELECT
-                word, distance, score
-            FROM
-                aliases
-            WHERE
-                word MATCH ? AND
-                distance <= {self._threshold_alias}
+            SELECT word, distance, score FROM aliases WHERE word MATCH ? AND distance <= {self._threshold_alias}
         """
 
         return [
@@ -252,10 +195,10 @@ class WikiKB(KnowledgeBase):
             for row in self._db_conn.execute(
                 """
                 SELECT
-                    alias_matches.mention,
-                    ae.entity_id,
-                    sum(ae.count) as occurence_count,
-                    min(alias_matches.distance) as min_distance
+                    matches.mention,
+                    matches.entity_id,
+                    matches.occurence_count,
+                    matches.min_distance
                 FROM ("""
                 + "\nUNION ALL\n".join(
                     [
@@ -264,28 +207,36 @@ class WikiKB(KnowledgeBase):
                                 *
                             FROM (
                                 SELECT
-                                    ? as mention,
-                                    matches.*
-                                FROM ({mention_subquery}) matches
+                                    matches.mention,
+                                    ae.entity_id,
+                                    sum(ae.count) as occurence_count,
+                                    min(matches.distance) as min_distance
+                                FROM (
+                                    SELECT
+                                        ? as mention,
+                                        matches.*
+                                    FROM ({mention_subquery}) matches
+                                    ORDER BY
+                                        score
+                                    LIMIT {self._top_k_aliases}
+                                ) matches
+                                INNER JOIN aliases_for_entities ae on
+                                    ae.alias = matches.alias
+                                GROUP BY
+                                    ae.entity_id
                                 ORDER BY
-                                    score
-                                LIMIT {self._top_k_alias}
+                                    min_distance,
+                                    occurence_count DESC
+                                LIMIT {self._top_k_entities_alias}
                             )
                         """
                     ]
                     * len(mentions)
                 )
-                + """
-                ) alias_matches
-                INNER JOIN aliases_for_entities ae on
-                    ae.alias = alias_matches.alias
-                GROUP BY
-                    alias_matches.mention,
-                    ae.entity_id
+                + f"""
+                ) matches
                 ORDER BY
-                    alias_matches.mention,
-                    min_distance,
-                    occurence_count DESC
+                    matches.mention
                 """,
                 list(
                     chain.from_iterable(
@@ -309,7 +260,8 @@ class WikiKB(KnowledgeBase):
             mention_subquery += f"""
                 SELECT
                     '{mention.text}' as mention,
-                    match.*
+                    match.score,
+                    match.entity_id
                 FROM (
                     SELECT
                         bm25(entities_texts) as score,
@@ -322,7 +274,7 @@ class WikiKB(KnowledgeBase):
                         bm25(entities_texts) <= {-self._threshold_fts}
                     ORDER BY
                         bm25(entities_texts)
-                    LIMIT {self._top_k_fts}
+                    LIMIT {self._top_k_entities_fts}
                 ) match
             """
             if i < len(mentions) - 1:
@@ -405,8 +357,8 @@ class WikiKB(KnowledgeBase):
                         self._language,
                         {key: str(path) for key, path in self._paths.items()},
                         self._embedding_dim,
-                        self._top_k_alias,
-                        self._top_k_fts,
+                        self._top_k_aliases,
+                        self._top_k_entities_fts,
                         self._threshold_alias,
                         self._threshold_fts,
                         self._update_hash("db"),
@@ -434,8 +386,8 @@ class WikiKB(KnowledgeBase):
             self._language = meta_info[0]
             self._paths = {k: Path(v) for k, v in meta_info[1].items()}
             self._embedding_dim = meta_info[2]
-            self._top_k_alias = meta_info[3]
-            self._top_k_fts = meta_info[4]
+            self._top_k_aliases = meta_info[3]
+            self._top_k_entities_fts = meta_info[4]
             self._threshold_alias = meta_info[5]
             self._threshold_fts = meta_info[6]
             self._hashes["db"] = meta_info[7]
@@ -491,8 +443,8 @@ class WikiKB(KnowledgeBase):
                     self._language,
                     self._paths,
                     self._embedding_dim,
-                    self._top_k_alias,
-                    self._top_k_fts,
+                    self._top_k_aliases,
+                    self._top_k_entities_fts,
                     self._threshold_alias,
                     self._threshold_fts,
                     self._hashes,
@@ -528,8 +480,8 @@ class WikiKB(KnowledgeBase):
                 self._language = meta_info[0]
                 self._paths = meta_info[1]
                 self._embedding_dim = meta_info[2]
-                self._top_k_alias = meta_info[3]
-                self._top_k_fts = meta_info[4]
+                self._top_k_aliases = meta_info[3]
+                self._top_k_entities_fts = meta_info[4]
                 self._threshold_alias = meta_info[5]
                 self._threshold_fts = meta_info[6]
                 self._hashes = meta_info[7]
