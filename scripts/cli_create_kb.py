@@ -34,6 +34,9 @@ def main(vectors_model: str, language: str):
     wkb.get_candidates_all([mentions1])
     wkb.get_candidates_all([mentions2])
 
+    # Build Annoy index.
+    # wkb.build_embeddings_index(nlp)
+
     # # Serialize knowledge base & pipeline.
     # output_dir = Path(os.path.abspath(__file__)).parent.parent / "output"
     # kb.to_disk(output_dir / language / "kb")

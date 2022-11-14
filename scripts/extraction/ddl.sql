@@ -58,12 +58,14 @@ CREATE VIRTUAL TABLE articles_texts USING fts5(
 CREATE VIRTUAL TABLE aliases USING spellfix1;
 
 CREATE TABLE aliases_for_entities (
-    -- Alias' row ID for entity label.
-    alias TEXT NOT NULL,
+    -- Alias' row ID for entity label. Use COLLATE NOCASE for case-insensitive searches.
+    alias TEXT NOT NULL COLLATE NOCASE,
     -- Equivalent to Wikidata QID.
     entity_id TEXT NOT NULL,
     -- Count of alias occurence in Wiki articles.
     count INTEGER,
+    -- Prior probability that this alias refers to this entity.
+    prior_prob REAL,
     PRIMARY KEY (alias, entity_id),
     FOREIGN KEY(entity_id) REFERENCES entities(id)
 );

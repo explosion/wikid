@@ -4,7 +4,9 @@ from typing import Dict, Any, Tuple, List, Optional
 import sqlite3
 
 import sqlite_spellfix
+import tqdm
 
+from utils import get_logger
 from . import schemas
 from . import wikidata
 from . import wikipedia
@@ -62,7 +64,7 @@ def parse(
     alias_prior_prob_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_prior_probs().
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
     """
-
+    logger = get_logger(__file__)
     _paths = get_paths(language)
     msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
     assert not os.path.exists(_paths["db"]), msg
@@ -97,6 +99,53 @@ def parse(
         db_conn,
         **(article_text_config if article_text_config else {}),
     )
+
+    # Update alias-entity probabilities (can only be done after parsing everything).
+    logger.info("Computing prior probabilities for alias-entity pairs.")
+    _update_prior_probs(db_conn, language)
+
+
+def _update_prior_probs(
+    db_conn: sqlite3.Connection, language: str, batch_size: int = 50000
+) -> None:
+    """Computes prior probabilities for all alias/entity pairs and updates DB with results.
+    db_conn (sqlite3.Connection): DB connection.
+    language (str): Language.
+    batch_size (int): Batch size (counted by aliases).
+    """
+    alias_entities_probs = load_alias_entity_prior_probabilities(language)
+    data: List[Tuple[float, str, str]] = []
+
+    def _update_batch() -> None:
+        """Update batch of alias-entity priors in DB."""
+        db_conn.cursor().executemany(
+            """
+            UPDATE
+                aliases_for_entities
+            SET
+                prior_prob=?
+            WHERE
+                alias=? AND
+                entity_id=?
+            """,
+            data,
+        )
+        db_conn.commit()
+
+    pbar = tqdm.tqdm(
+        alias_entities_probs.items(),
+        desc="Persisting prior probabilities of alias-entity pairs",
+    )
+    for alias, qid_probs in pbar:
+        data.extend([(qid_prob[1], alias, qid_prob[0]) for qid_prob in qid_probs])
+        if pbar.n % batch_size == 0:
+            _update_batch()
+            data = []
+
+    if len(data):
+        _update_batch()
+        pbar.n = len(alias_entities_probs)
+        pbar.refresh()
 
 
 def load_entities(
@@ -190,7 +239,7 @@ def load_alias_entity_prior_probabilities(
             )
         ]
         for rec in db_conn.cursor().execute(
-            """
+            f"""
                 SELECT
                     alias,
                     GROUP_CONCAT(entity_id) as entity_ids,
