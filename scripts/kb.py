@@ -5,7 +5,7 @@ import pickle
 
 from itertools import chain
 from pathlib import Path
-from typing import Iterable, Iterator, Tuple, Union, Optional, Dict, Any, List
+from typing import Iterable, Iterator, Tuple, Union, Optional, Dict, Any, List, Sized
 
 import annoy
 import numpy
@@ -155,43 +155,117 @@ class WikiKB(KnowledgeBase):
         self, mentions: Iterator[Iterable[Span]]
     ) -> Iterator[Iterable[Iterable[Candidate]]]:
         """
-        Return candidate entities for specified mentions. Each candidate defines the qid, the original alias,
-        and the prior probability of that alias resolving to that qid.
-        If no candidate is found for a given mention, an empty list is returned.
+        Retrieve candidate entities for specified mentions per document. If no candidate is found for a given mention,
+        an empty list is returned.
         mentions (Iterator[Iterable[Span]]): Mentions per documents for which to get candidates.
-        RETURNS (Iterator[Iterable[Iterable[Candidate]]]): Identified candidates per document.
+        YIELDS (Iterator[Iterable[Iterable[Candidate]]]): Identified candidates per document.
         """
-
         for mentions_in_doc in mentions:
-            pass
-            # start = time.time()
-            # alias_matches = self._fetch_candidates_by_alias(tuple(mentions_in_doc))
-            # duration_alias = time.time() - start
-            # start = time.time()
-            # fts_matches = self._fetch_candidates_by_fts(tuple(mentions_in_doc))
-            # duration_fts = time.time() - start
-            #
-            # matches = {
-            #     mid.text: list(
-            #         {
-            #             *[
-            #                 match["entity_id"]
-            #                 for match in alias_matches.get(mid.text, [])
-            #             ],
-            #             *[
-            #                 match["entity_id"]
-            #                 for match in fts_matches.get(mid.text, [])
-            #             ],
-            #         }
-            #     )
-            #     for mid in mentions_in_doc
-            # }
-            # todo
-            #   - retrieve entity embeddings
-            #   - entity_hash -> None?
-            #   - generate candidates
+            mentions_in_doc = tuple(mentions_in_doc)
+            alias_matches = self._fetch_candidates_by_alias(mentions_in_doc)
+            fts_matches = self._fetch_candidates_by_fts(mentions_in_doc)
+            # Candidates for each mention per document.
+            candidates: List[List[Candidate]] = []
 
-            # yield [self.get_candidates(span) for span in doc_mentions]
+            for i, mention in enumerate(mentions_in_doc):
+                candidates.append([])
+
+                for cand_data in alias_matches.get(mention.text, []):
+                    candidates[i].append(
+                        Candidate(
+                            kb=self,
+                            entity_freq=cand_data["sum_occurence_count"],
+                            prior_prob=cand_data["max_prior_prob"],
+                            entity_vector=next(
+                                iter(self._get_vectors([cand_data["rowid"]]))
+                            ),
+                            # Hashes aren't used by WikiKB.
+                            entity_hash=0,
+                            alias_hash=0,
+                        )
+                    )
+
+                for cand_data in fts_matches.get(mention.text, []):
+                    candidates[i].append(
+                        Candidate(
+                            kb=self,
+                            entity_freq=cand_data["sum_occurence_count"],
+                            prior_prob=-1,
+                            entity_vector=next(
+                                iter(self._get_vectors([cand_data["rowid"]]))
+                            ),
+                            # Hashes aren't used by WikiKB.
+                            entity_hash=0,
+                            alias_hash=0,
+                        )
+                    )
+
+            yield candidates
+
+    def get_candidates(self, mention: Span) -> Iterable[Candidate]:
+        """
+        Retrieve candidate entities for specified mention. If no candidate is found for a given mention, an empty list
+        is returned.
+        mention (Span): Mention for which to get candidates.
+        RETURNS (Iterable[Candidate]): Identified candidates.
+        """
+        return next(iter(next(self.get_candidates_all([mention]))))
+
+    def _get_vectors(self, rowids: Iterable[int]) -> Iterable[Iterable[float]]:
+        """
+        Return vectors for entities.
+        rowids (Iterable[int]): ROWID values for entities in table `entities`.
+        RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
+        """
+        # Annoy doesn't seem to offer batched retrieval.
+        return [self._annoy.get_item_vector(rowid - 1) for rowid in rowids]
+
+    def get_vectors(self, qids: Iterable[str]) -> Iterable[Iterable[float]]:
+        """
+        Return vectors for entities.
+        qids (str): Wiki QIDs.
+        RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
+        """
+        if not isinstance(qids, Sized):
+            qids = set(qids)
+
+        # Fetch row IDs for QIDs, resolve to vectors in Annoy index.
+        return self._get_vectors(
+            [
+                row["ROWID"]
+                for row in self._db_conn.cursor()
+                .execute(
+                    "SELECT ROWID FROM entities WHERE id in (%s)"
+                    % ",".join("?" * len(qids)),
+                    tuple(qids),
+                )
+                .fetchall()
+            ]
+        )
+
+    def get_vector(self, qid: str) -> Iterable[float]:
+        """
+        Return vector for qid.
+        qid (str): Wiki QID.
+        RETURNS (Iterable[float]): Vector for specified entities.
+        """
+        return next(iter(self.get_vectors([qid])))
+
+    @staticmethod
+    def _hash_file(file_path: Path, blocksize: int = 2**20) -> str:
+        """Generates MD5 file of hash iteratively (without loading entire file into memory.
+        Source: https://stackoverflow.com/a/1131255.
+        file_path (Path): Path of file to hash.
+        blocksize (int): Size of blocks to load into memory (in bytes).
+        RETURN (str): MD5 hash of file.
+        """
+        file_hash = hashlib.md5()
+        with open(file_path, "rb") as f:
+            buf = f.read(blocksize)
+            while buf:
+                file_hash.update(buf)
+                buf = f.read(blocksize)
+        return file_hash.hexdigest()
 
     def _fetch_candidates_by_alias(
         self, mentions: Tuple[Span, ...]
@@ -286,14 +360,15 @@ class WikiKB(KnowledgeBase):
             mention and (2) BM25 score.
         """
         # Subquery to fetch alias values for single mentions.
-        mention_subquery = ""
+        query = ""
         for i, mention in enumerate(mentions):
-            mention_subquery += f"""
+            query += f"""
                 SELECT
                     '{mention.text}' as mention,
                     match.score,
                     match.entity_id,
-                    match.rowid
+                    match.rowid,
+                    sum(afe.count) as sum_occurence_count
                 FROM (
                     SELECT
                         bm25(entities_texts) as score,
@@ -307,67 +382,25 @@ class WikiKB(KnowledgeBase):
                         bm25(entities_texts)
                     LIMIT {self._top_k_entities_fts}
                 ) match
+                INNER JOIN entities e ON
+                    e.ROWID = match.ROWID
+                INNER JOIN aliases_for_entities afe ON
+                    e.id = afe.entity_id
+                GROUP BY
+                    mention,
+                    match.score,
+                    match.entity_id,
+                    match.rowid
             """
             if i < len(mentions) - 1:
-                mention_subquery += "\nUNION ALL\n"
+                query += "\nUNION ALL\n"
 
         grouped_rows: Dict[str, List[Dict[str, Union[str, int, float]]]] = {}
-        for row in [
-            dict(row)
-            for row in self._db_conn.execute(
-                f"""
-                SELECT
-                    *
-                FROM (
-                    {mention_subquery}
-                )
-                """,
-            ).fetchall()
-        ]:
+        for row in [dict(row) for row in self._db_conn.execute(query).fetchall()]:
             mention = row.pop("mention")
             grouped_rows[mention] = [*grouped_rows.get(mention, []), row]
 
         return grouped_rows
-
-    def get_candidates(self, mention: Span) -> Iterable[Candidate]:
-        """
-        Not supported.
-        mention (Span): Mention for which to get candidates.
-        RETURNS (Iterable[Candidate]): Identified candidates.
-        """
-        raise NotImplementedError
-
-    def get_vectors(self, qids: Iterable[str]) -> Iterable[Iterable[float]]:
-        """
-        Return vectors for qids.
-        qids (str): Wiki QIDs.
-        RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
-        """
-        return [self.get_vector(qid) for qid in qids]
-
-    def get_vector(self, qid: str) -> Iterable[float]:
-        """
-        Return vector for qid.
-        qid (str): Wiki QID.
-        RETURNS (Iterable[float]): Vector for specified entities.
-        """
-        raise NotImplementedError
-
-    @staticmethod
-    def _hash_file(file_path: Path, blocksize: int = 2**20) -> str:
-        """Generates MD5 file of hash iteratively (without loading entire file into memory.
-        Source: https://stackoverflow.com/a/1131255.
-        file_path (Path): Path of file to hash.
-        blocksize (int): Size of blocks to load into memory (in bytes).
-        RETURN (str): MD5 hash of file.
-        """
-        file_hash = hashlib.md5()
-        with open(file_path, "rb") as f:
-            buf = f.read(blocksize)
-            while buf:
-                file_hash.update(buf)
-                buf = f.read(blocksize)
-        return file_hash.hexdigest()
 
     def _init_annoy_from_file(self) -> None:
         """Inits Annoy index."""
