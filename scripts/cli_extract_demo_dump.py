@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from extraction import wikipedia, wikidata, get_paths
+from .extraction import wikipedia, wikidata, get_paths
 
 
 def main(language: str):

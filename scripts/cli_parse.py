@@ -2,7 +2,7 @@
 from typing import Optional
 import typer
 
-from extraction import parse
+from .extraction import parse
 
 
 def main(
