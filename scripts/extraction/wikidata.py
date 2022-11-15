@@ -252,7 +252,8 @@ def _write_to_db(
             )
         )
         for alias in {*id_to_attrs[qid]["aliases"], title, label}:
-            aliases_for_entities.append((alias, qid, 1))
+            if alias:
+                aliases_for_entities.append((alias, qid, 1))
 
     cur = db_conn.cursor()
     cur.executemany(

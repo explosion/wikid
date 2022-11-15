@@ -1,3 +1,4 @@
+import logging
 import os.path
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Optional
@@ -6,10 +7,24 @@ import sqlite3
 import sqlite_spellfix
 import tqdm
 
-from utils import get_logger
 from . import schemas
 from . import wikidata
 from . import wikipedia
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+
+def get_logger(handle: str) -> logging.Logger:
+    """Get logger for handle.
+    handle (str): Logger handle.
+    RETURNS (logging.Logger): Logger.
+    """
+    return logging.getLogger(handle)
 
 
 def get_paths(language: str) -> Dict[str, Path]:

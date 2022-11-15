@@ -20,5 +20,36 @@ def _generate_test_db() -> Path:
         db_conn.cursor().executescript(ddl_sql.read())
 
     # Fill DB.
+    cursor = db_conn.cursor()
+    cursor.execute(
+        """
+        -- New York, Boston, Lisbon.
+        INSERT INTO entities (id) VALUES (60);
+        INSERT INTO entities (id) VALUES (100);
+        INSERT INTO entities (id) VALUES (597);
+
+        INSERT INTO entities_texts (entity_id, name, description, label)
+        VALUES (
+            60,
+            'New York City',
+            'most populous city in the United States',
+            'New York City'
+        );
+        INSERT INTO entities_texts (entity_id, name, description, label)
+        VALUES (
+            100,
+            'Boston',
+            'capital and largest city of Massachusetts, United States',
+            'Boston'
+        );
+        INSERT INTO entities_texts (entity_id, name, description, label)
+        VALUES (
+            597,
+            'Lisbon',
+            'capital city of Portugal',
+            'Lisbon'
+        );
+        """
+    )
 
     return db_path
