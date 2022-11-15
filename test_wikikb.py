@@ -2,6 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
+from kb import WikiKB
 from scripts.extraction import establish_db_connection
 
 _language = "en"
@@ -29,46 +30,88 @@ def _generate_test_db() -> Path:
         INSERT INTO entities (id) VALUES (597);
 
         INSERT INTO entities_texts (entity_id, name, description, label) VALUES
-            (60, 'New York City', 'most populous city in the United States', 'New York City'),
-            (100, 'Boston', 'capital and largest city of Massachusetts, United States', 'Boston'),
-            (597, 'Lisbon', 'capital city of Portugal', 'Lisbon');
+            ('Q60', 'New York City', 'most populous city in the United States', 'New York City'),
+            ('Q100', 'Boston', 'capital and largest city of Massachusetts, United States', 'Boston'),
+            ('Q597', 'Lisbon', 'capital city of Portugal', 'Lisbon');
+
+        INSERT INTO articles (entity_id, id) VALUES (60, 0), (100, 1), (597, 2);
+        INSERT INTO articles_texts (entity_id, title, content) VALUES
+            (
+                'Q60',
+                'New York City',
+                'New York, often called New York City (NYC), is the most populous city in the United States. With a
+                2020 population of 8,804,190 distributed over 300.46 square miles (778.2 km2), New York City is also the
+                most densely populated major city in the United States. The city is within the southern tip of New York
+                State, and constitutes the geographical and demographic center of both the Northeast megalopolis and the
+                New York metropolitan area – the largest metropolitan area in the world by urban landmass.'
+            ),
+            (
+                'Q100',
+                'Boston',
+                'Boston (US: /ˈbɔːstən/), officially the City of Boston, is the state capital and most populous city of
+                the Commonwealth of Massachusetts, as well as the cultural and financial center of the New England
+                region of the United States. It is the 24th-most populous city in the country. The city boundaries
+                encompass an area of about 48.4 sq mi (125 km2) and a population of 675,647 as of 2020.'
+            ),
+            (
+                'Q597',
+                'Lisbon',
+                'Lisbon (/ˈlɪzbən/; Portuguese: Lisboa [liʒˈboɐ] (listen)) is the capital and the largest city of
+                Portugal, with an estimated population of 544,851 within its administrative limits in an area of
+                100.05 km2. Lisbon''s urban area extends beyond the city''s administrative limits with a population of
+                around 2.7 million people, being the 11th-most populous urban area in the European Union. About 3
+                million people live in the Lisbon metropolitan area, making it the third largest metropolitan area in
+                the Iberian Peninsula, after Madrid and Barcelona.'
+            )
+        ;
 
         INSERT INTO aliases_for_entities (alias, entity_id, count, prior_prob) VALUES
-            ('NYC', 60, 1, 0.01),
-            ('New York', 60, 1, 0.01),
-            ('the five boroughs', 60, 1, 0.01),
-            ('Big Apple', 60, 1, 0.01),
-            ('City of New York', 60, 1, 0.01),
-            ('NY City', 60, 1, 0.01),
-            ('New York, New York', 60, 1, 0.01),
-            ('New York City, New York', 60, 1, 0.01),
-            ('New York, NY', 60, 1, 0.01),
-            ('New York City (NYC)', 60, 1, 0.01),
-            ('New York (city)', 60, 1, 0.01),
-            ('city of New York', 60, 1, 0.01),
-            ('New York City, NY', 60, 1, 0.01),
-            ('Caput Mundi', 60, 1, 0.01),
-            ('The City So Nice They Named It Twice', 60, 1, 0.01),
-            ('Capital of the World', 60, 1, 0.01),
+            ('NYC', 'Q60', 1, 0.01),
+            ('New York', 'Q60', 1, 0.01),
+            ('the five boroughs', 'Q60', 1, 0.01),
+            ('Big Apple', 'Q60', 1, 0.01),
+            ('City of New York', 'Q60', 1, 0.01),
+            ('NY City', 'Q60', 1, 0.01),
+            ('New York, New York', 'Q60', 1, 0.01),
+            ('New York City, New York', 'Q60', 1, 0.01),
+            ('New York, NY', 'Q60', 1, 0.01),
+            ('New York City (NYC)', 'Q60', 1, 0.01),
+            ('New York (city)', 'Q60', 1, 0.01),
+            ('city of New York', 'Q60', 1, 0.01),
+            ('New York City, NY', 'Q60', 1, 0.01),
+            ('Caput Mundi', 'Q60', 1, 0.01),
+            ('The City So Nice They Named It Twice', 'Q60', 1, 0.01),
+            ('Capital of the World', 'Q60', 1, 0.01),
 
-            ('Boston', 100, 1, 0.01),
-            ('Beantown', 100, 1, 0.01),
-            ('The Cradle of Liberty', 100, 1, 0.01),
-            ('The Hub', 100, 1, 0.01),
-            ('The Cradle of Modern America', 100, 1, 0.01),
-            ('The Athens of America', 100, 1, 0.01),
-            ('The Walking City', 100, 1, 0.01),
-            ('The Hub of the Universe', 100, 1, 0.01),
-            ('Bostonia', 100, 1, 0.01),
-            ('Boston, Massachusetts', 100, 1, 0.01),
-            ('Boston, Mass.', 100, 1, 0.01),
-            ('Puritan City', 100, 1, 0.01),
+            ('Boston', 'Q100', 1, 0.01),
+            ('Beantown', 'Q100', 1, 0.01),
+            ('The Cradle of Liberty', 'Q100', 1, 0.01),
+            ('The Hub', 'Q100', 1, 0.01),
+            ('The Cradle of Modern America', 'Q100', 1, 0.01),
+            ('The Athens of America', 'Q100', 1, 0.01),
+            ('The Walking City', 'Q100', 1, 0.01),
+            ('The Hub of the Universe', 'Q100', 1, 0.01),
+            ('Bostonia', 'Q100', 1, 0.01),
+            ('Boston, Massachusetts', 'Q100', 1, 0.01),
+            ('Boston, Mass.', 'Q100', 1, 0.01),
+            ('Puritan City', 'Q100', 1, 0.01),
 
-            ('Lisbon', 597, 1, 0.01),
-            ('Lisboa', 597, 1, 0.01);
+            ('Lisbon', 'Q597', 1, 0.01),
+            ('Lisboa', 'Q597', 1, 0.01);
 
-            INSERT INTO aliases(word) SELECT distinct(alias) FROM aliases_for_entities;
+            INSERT INTO aliases (word) SELECT distinct(alias) FROM aliases_for_entities;
         """
     )
 
     return db_path
+
+
+def _generate_kb(db_path: Path) -> WikiKB:
+    """Generates KB.
+    db_path (Path): Path to database.
+    RETURNS (WikiKB): WikiKB instance.
+    """
+
+
+def test_kb_generation():
+    """Tests KB generation."""

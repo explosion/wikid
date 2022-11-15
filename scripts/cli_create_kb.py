@@ -6,8 +6,8 @@ from pathlib import Path
 import spacy
 import typer
 
-from .extraction import get_paths
-from .kb import WikiKB
+from extraction import get_paths
+from kb import WikiKB
 
 
 def main(vectors_model: str, language: str):

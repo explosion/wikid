@@ -220,7 +220,7 @@ def read_entities(
 
     logger.info("Synchronizing aliases table.")
     db_conn.cursor().execute(
-        "INSERT INTO aliases(word) SELECT distinct(alias) FROM aliases_for_entities"
+        "INSERT INTO aliases (word) SELECT distinct(alias) FROM aliases_for_entities"
     )
     db_conn.commit()
 
