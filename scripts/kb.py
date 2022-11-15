@@ -89,6 +89,8 @@ class WikiKB(KnowledgeBase):
             .execute("SELECT count(*) FROM entities")
             .fetchone()["count(*)"]
         )
+
+        #
         for row_id in tqdm.tqdm(
             # We select by ROWID, which starts at 1.
             range(1, row_count + 1, batch_size),
@@ -116,6 +118,7 @@ class WikiKB(KnowledgeBase):
             qids = tuple(_id[0] for _id in ids)
             entities = load_entities(language=self._language, qids=qids)
 
+            # Assemble descriptions to be embedded.
             ent_descs = [
                 " ".join({entities[qid].name, *entities[qid].aliases})
                 + " "
@@ -253,7 +256,7 @@ class WikiKB(KnowledgeBase):
 
     @staticmethod
     def _hash_file(file_path: Path, blocksize: int = 2**20) -> str:
-        """Generates MD5 file of hash iteratively (without loading entire file into memory.
+        """Generates MD5 file of hash iteratively (without loading entire file into memory).
         Source: https://stackoverflow.com/a/1131255.
         file_path (Path): Path of file to hash.
         blocksize (int): Size of blocks to load into memory (in bytes).

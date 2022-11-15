@@ -156,7 +156,7 @@ def load_entities(
     """Loads information for entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
     language (str): Language.
-    qids (Tuple[str]): QIDS to look up. If empty, all qids are loaded.
+    qids (Tuple[str]): QIDS to look up. If empty, all entities are loaded.
     db_conn (Optional[sqlite3.Connection]): Database connection.
     RETURNS (Dict[str, Entity]): Information on requested entities.
     """
@@ -223,7 +223,7 @@ def load_entities(
 def load_alias_entity_prior_probabilities(
     language: str, db_conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, List[Tuple[str, float]]]:
-    """Loads alias-qid counts from database and transforms them into prior probabilities per alias.
+    """Loads alias-entity counts from database and transforms them into prior probabilities per alias.
     language (str): Language.
     RETURN (Dict[str, Tuple[Tuple[str, ...], Tuple[float, ...]]]): Mapping of alias to tuples of entities and the
         corresponding prior probabilities.
