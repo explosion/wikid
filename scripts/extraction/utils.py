@@ -45,14 +45,17 @@ def get_paths(language: str) -> Dict[str, Path]:
     }
 
 
-def establish_db_connection(language: str) -> sqlite3.Connection:
+def establish_db_connection(
+    language: str, db_path: Optional[Path] = None
+) -> sqlite3.Connection:
     """Estabished database connection.
     language (str): Language.
+    db_path (Optional[Path]): DB path to use. If none specified, get_paths(language) is invoked to determine DB path.
     RETURNS (sqlite3.Connection): Database connection.
     """
-    db_path = get_paths(language)["db"]
+    db_path = get_paths(language)["db"] if db_path is None else db_path
     os.makedirs(db_path.parent, exist_ok=True)
-    db_conn = sqlite3.connect(get_paths(language)["db"])
+    db_conn = sqlite3.connect(db_path)
 
     # Use row factory to obtain records as dicts.
     db_conn.row_factory = sqlite3.Row

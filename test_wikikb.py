@@ -2,39 +2,47 @@ import os
 import tempfile
 from pathlib import Path
 
-from kb import WikiKB
+import pytest
+import spacy
+
+from scripts.kb import WikiKB
 from scripts.extraction import establish_db_connection
 
 _language = "en"
 
 
-def _generate_test_db() -> Path:
+@pytest.fixture
+def _db_path() -> Path:
     """Generates test DB.
     RETURNS (Path): Path to database in temporary directory.
     """
-    tmp_dir = tempfile.TemporaryDirectory().name
+    tmp_dir = Path(tempfile.TemporaryDirectory().name)
     db_path = tmp_dir / "wiki.sqlite"
 
     # Construct DB.
-    db_conn = establish_db_connection(_language)
-    with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
+    db_conn = establish_db_connection(_language, db_path)
+    with open(
+        Path(os.path.abspath(__file__)).parent / "scripts" / "extraction" / "ddl.sql",
+        "r",
+    ) as ddl_sql:
         db_conn.cursor().executescript(ddl_sql.read())
 
     # Fill DB.
     cursor = db_conn.cursor()
+    cursor.execute("INSERT INTO entities (id) VALUES ('Q60'), ('Q100'), ('Q597');")
     cursor.execute(
         """
-        -- New York, Boston, Lisbon.
-        INSERT INTO entities (id) VALUES (60);
-        INSERT INTO entities (id) VALUES (100);
-        INSERT INTO entities (id) VALUES (597);
-
         INSERT INTO entities_texts (entity_id, name, description, label) VALUES
             ('Q60', 'New York City', 'most populous city in the United States', 'New York City'),
             ('Q100', 'Boston', 'capital and largest city of Massachusetts, United States', 'Boston'),
             ('Q597', 'Lisbon', 'capital city of Portugal', 'Lisbon');
-
-        INSERT INTO articles (entity_id, id) VALUES (60, 0), (100, 1), (597, 2);
+        """
+    )
+    cursor.execute(
+        "INSERT INTO articles (entity_id, id) VALUES (60, 0), (100, 1), (597, 2);"
+    )
+    cursor.execute(
+        """
         INSERT INTO articles_texts (entity_id, title, content) VALUES
             (
                 'Q60',
@@ -64,7 +72,10 @@ def _generate_test_db() -> Path:
                 the Iberian Peninsula, after Madrid and Barcelona.'
             )
         ;
-
+        """
+    )
+    cursor.execute(
+        """
         INSERT INTO aliases_for_entities (alias, entity_id, count, prior_prob) VALUES
             ('NYC', 'Q60', 1, 0.01),
             ('New York', 'Q60', 1, 0.01),
@@ -77,7 +88,6 @@ def _generate_test_db() -> Path:
             ('New York, NY', 'Q60', 1, 0.01),
             ('New York City (NYC)', 'Q60', 1, 0.01),
             ('New York (city)', 'Q60', 1, 0.01),
-            ('city of New York', 'Q60', 1, 0.01),
             ('New York City, NY', 'Q60', 1, 0.01),
             ('Caput Mundi', 'Q60', 1, 0.01),
             ('The City So Nice They Named It Twice', 'Q60', 1, 0.01),
@@ -98,20 +108,30 @@ def _generate_test_db() -> Path:
 
             ('Lisbon', 'Q597', 1, 0.01),
             ('Lisboa', 'Q597', 1, 0.01);
-
-            INSERT INTO aliases (word) SELECT distinct(alias) FROM aliases_for_entities;
         """
     )
-
+    cursor.execute(
+        "INSERT INTO aliases (word) SELECT distinct(alias) FROM aliases_for_entities;"
+    )
+    db_conn.commit()
     return db_path
 
 
-def _generate_kb(db_path: Path) -> WikiKB:
+@pytest.fixture
+def _kb(_db_path) -> WikiKB:
     """Generates KB.
-    db_path (Path): Path to database.
+    _db_path (Path): Path to database / fixture constructing database in temporary directory.
     RETURNS (WikiKB): WikiKB instance.
     """
+    nlp = spacy.load(
+        "en_core_web_sm", exclude=["tagger", "lemmatizer", "attribute_ruler"]
+    )
+    kb = WikiKB(nlp.vocab, 96, _db_path, _db_path.parent / "wiki.annoy", "en")
+    kb.build_embeddings_index(nlp, n_jobs=1)
+
+    return kb
 
 
-def test_kb_generation():
+def test_kb_generation(_kb) -> None:
     """Tests KB generation."""
+    print(_kb)

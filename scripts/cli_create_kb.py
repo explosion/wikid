@@ -21,6 +21,7 @@ def main(vectors_model: str, language: str):
 
     kb = WikiKB(
         nlp.vocab,
+        nlp.vocab.vectors_length,
         get_paths(language)["db"],
         get_paths(language)["db"].parent / "wiki.annoy",
         language,
