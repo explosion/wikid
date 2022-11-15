@@ -12,7 +12,7 @@ from typing import Union, Optional, Dict, Tuple, Any, List, Set
 
 import tqdm
 
-from utils import get_logger
+from .utils import get_logger
 from .namespaces import WD_META_ITEMS
 
 
