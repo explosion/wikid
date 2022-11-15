@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from .extraction import establish_db_connection
+from scripts.extraction import establish_db_connection
 
 _language = "en"
 
@@ -66,6 +66,8 @@ def _generate_test_db() -> Path:
 
             ('Lisbon', 597, 1, 0.01),
             ('Lisboa', 597, 1, 0.01);
+
+            INSERT INTO aliases(word) SELECT distinct(alias) FROM aliases_for_entities;
         """
     )
 
