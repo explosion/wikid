@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from extraction import establish_db_connection
+from .extraction import establish_db_connection
 
 _language = "en"
 
@@ -34,7 +34,24 @@ def _generate_test_db() -> Path:
             (597, 'Lisbon', 'capital city of Portugal', 'Lisbon');
 
         INSERT INTO aliases_for_entities (alias, entity_id, count, prior_prob) VALUES
-            ('Puritan City', 100, 1, 0.01),
+            ('NYC', 60, 1, 0.01),
+            ('New York', 60, 1, 0.01),
+            ('the five boroughs', 60, 1, 0.01),
+            ('Big Apple', 60, 1, 0.01),
+            ('City of New York', 60, 1, 0.01),
+            ('NY City', 60, 1, 0.01),
+            ('New York, New York', 60, 1, 0.01),
+            ('New York City, New York', 60, 1, 0.01),
+            ('New York, NY', 60, 1, 0.01),
+            ('New York City (NYC)', 60, 1, 0.01),
+            ('New York (city)', 60, 1, 0.01),
+            ('city of New York', 60, 1, 0.01),
+            ('New York City, NY', 60, 1, 0.01),
+            ('Caput Mundi', 60, 1, 0.01),
+            ('The City So Nice They Named It Twice', 60, 1, 0.01),
+            ('Capital of the World', 60, 1, 0.01),
+
+            ('Boston', 100, 1, 0.01),
             ('Beantown', 100, 1, 0.01),
             ('The Cradle of Liberty', 100, 1, 0.01),
             ('The Hub', 100, 1, 0.01),
@@ -46,8 +63,9 @@ def _generate_test_db() -> Path:
             ('Boston, Massachusetts', 100, 1, 0.01),
             ('Boston, Mass.', 100, 1, 0.01),
             ('Puritan City', 100, 1, 0.01),
-            ;
 
+            ('Lisbon', 597, 1, 0.01),
+            ('Lisboa', 597, 1, 0.01);
         """
     )
 
