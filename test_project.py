@@ -10,7 +10,7 @@ from spacy.cli.project.assets import project_assets
     sys.platform == "win32",
     reason="Skipping on Windows (for now) due to platform-specific scripts.",
 )
-def test_wikid():
+def test_project():
     root = Path(__file__).parent
     project_assets(root)
     project_run(root, "parse", capture=True)
