@@ -17,11 +17,11 @@ def main(vectors_model: str, language: str):
     """
     logger = logging.getLogger(__name__)
     logger.info("Constructing knowledge base.")
-    nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
 
+    nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
     kb = WikiKB(
         nlp.vocab,
-        nlp.vocab.vectors_length,
+        nlp(".").vector.shape[0],
         get_paths(language)["db"],
         get_paths(language)["db"].parent / "wiki.annoy",
         language,

@@ -126,7 +126,13 @@ def _kb(_db_path) -> WikiKB:
     nlp = spacy.load(
         "en_core_web_sm", exclude=["tagger", "lemmatizer", "attribute_ruler"]
     )
-    kb = WikiKB(nlp.vocab, 96, _db_path, _db_path.parent / "wiki.annoy", "en")
+    kb = WikiKB(
+        nlp.vocab,
+        nlp(".").vector.shape[0],
+        _db_path,
+        _db_path.parent / "wiki.annoy",
+        "en",
+    )
     kb.build_embeddings_index(nlp, n_jobs=1)
 
     return kb
