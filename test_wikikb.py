@@ -140,4 +140,81 @@ def _kb(_db_path) -> WikiKB:
 
 def test_kb_generation(_kb) -> None:
     """Tests KB generation."""
-    print(_kb)
+    # Check DB content.
+    assert all(
+        [
+            _kb._db_conn.cursor()
+            .execute(f"SELECT count(*) FROM {table}")
+            .fetchone()["count(*)"]
+            == 3
+            for table in ("entities", "articles", "entities_texts", "articles_texts")
+        ]
+    )
+    assert (
+        _kb._db_conn.cursor()
+        .execute("SELECT count(*) FROM aliases_for_entities")
+        .fetchone()["count(*)"]
+        == 29
+    )
+    assert (
+        _kb._db_conn.cursor()
+        .execute("SELECT count(*) FROM aliases")
+        .fetchone()["count(*)"]
+        == 29
+    )
+
+    # Check Annoy index.
+    assert len(_kb._annoy.get_item_vector(0)) == _kb.entity_vector_length
+    assert _kb._annoy.get_n_items() == 3
+
+
+@pytest.mark.parametrize("method", ["bytes", "disk"])
+def test_kb_serialization(_kb, method: str) -> None:
+    """Tests KB serialization (to and from byte strings, to and from disk).
+    method (str): Method to use for serialization. Has to be one of ("bytes", "disk").
+    """
+    assert method in ("bytes", "disk")
+    nlp = spacy.load(
+        "en_core_web_sm", exclude=["tagger", "lemmatizer", "attribute_ruler"]
+    )
+
+    # Create KB for comparison with diverging values.
+    kb = WikiKB(
+        nlp.vocab,
+        nlp(".").vector.shape[0] + 1,
+        _kb._paths["db"],
+        Path("this_path_doesnt_exist"),
+        "es",
+        n_trees=100,
+        top_k_aliases=100,
+        top_k_entities_alias=100,
+        top_k_entities_fts=100,
+        threshold_alias=1000,
+    )
+
+    # Reset KB to serialized reference KB.
+    if method == "bytes":
+        kb.from_bytes(_kb.to_bytes())
+    else:
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            kb_file_path = Path(tmp_dir_name) / "kb"
+            _kb.to_disk(kb_file_path)
+            kb.from_disk(kb_file_path)
+
+    # Verify KB's attributes are identical to serialized KB instance.
+    assert all(
+        [
+            getattr(kb, attr_name) == getattr(_kb, attr_name)
+            for attr_name in (
+                "_paths",
+                "_language",
+                "_n_trees",
+                "entity_vector_length",
+                "_hashes",
+                "_top_k_aliases",
+                "_top_k_entities_alias",
+                "_top_k_entities_fts",
+                "_threshold_alias",
+            )
+        ]
+    )

@@ -33,7 +33,7 @@ class WikiKB(KnowledgeBase):
         db_path: Path,
         annoy_path: Path,
         language: str,
-        n_trees: int = 50,
+        n_trees: int = 25,
         top_k_aliases: int = 5,
         top_k_entities_alias: int = 20,
         top_k_entities_fts: int = 5,
@@ -64,7 +64,6 @@ class WikiKB(KnowledgeBase):
         self._annoy: Optional[annoy.AnnoyIndex] = None
         self._n_trees = n_trees
         self._db_conn = establish_db_connection(language, self._paths["db"])
-        self._embedding_dim = self.entity_vector_length
         self._hashes: Dict[str, Optional[str]] = {}
         self._top_k_aliases = top_k_aliases
         self._top_k_entities_alias = top_k_entities_alias
@@ -83,7 +82,7 @@ class WikiKB(KnowledgeBase):
         logger = logging.getLogger(__name__)
 
         # Initialize ANN index.
-        self._annoy = annoy.AnnoyIndex(self._embedding_dim, "angular")
+        self._annoy = annoy.AnnoyIndex(self.entity_vector_length, "angular")
         self._annoy.on_disk_build(str(self._paths["annoy"]))
         batch_size = 100000
 
@@ -412,7 +411,7 @@ class WikiKB(KnowledgeBase):
 
     def _init_annoy_from_file(self) -> None:
         """Inits Annoy index."""
-        self._annoy = annoy.AnnoyIndex(self._embedding_dim, "angular")
+        self._annoy = annoy.AnnoyIndex(self.entity_vector_length, "angular")
         self._annoy.load(str(self._paths["annoy"]))
 
     def _update_hash(self, key: str) -> str:
@@ -433,10 +432,12 @@ class WikiKB(KnowledgeBase):
                     data=(
                         self._language,
                         {key: str(path) for key, path in self._paths.items()},
-                        self._embedding_dim,
+                        self.entity_vector_length,
                         self._top_k_aliases,
+                        self._top_k_entities_alias,
                         self._top_k_entities_fts,
                         self._threshold_alias,
+                        self._n_trees,
                         self._update_hash("db"),
                         self._update_hash("annoy"),
                     )
@@ -461,12 +462,14 @@ class WikiKB(KnowledgeBase):
             meta_info = srsly.json_loads(value)
             self._language = meta_info[0]
             self._paths = {k: Path(v) for k, v in meta_info[1].items()}
-            self._embedding_dim = meta_info[2]
+            self.entity_vector_length = meta_info[2]
             self._top_k_aliases = meta_info[3]
-            self._top_k_entities_fts = meta_info[4]
-            self._threshold_alias = meta_info[5]
-            self._hashes["db"] = meta_info[7]
-            self._hashes["annoy"] = meta_info[8]
+            self._top_k_entities_alias = meta_info[4]
+            self._top_k_entities_fts = meta_info[5]
+            self._threshold_alias = meta_info[6]
+            self._n_trees = meta_info[7]
+            self._hashes["db"] = meta_info[8]
+            self._hashes["annoy"] = meta_info[9]
 
             self._init_annoy_from_file()
             for file_id in ("annoy", "db"):
@@ -474,14 +477,10 @@ class WikiKB(KnowledgeBase):
                     self._paths[file_id]
                 ), f"File with internal ID {file_id} does not match deserialized hash."
 
-        def deserialize_vocab(value: bytes):
-            """De-serialize vocab.
-            value (bytes): Byte string to deserialize.
-            """
-            self.vocab.from_bytes(value)
-
         spacy.util.from_bytes(
-            bytes_data, {"meta": deserialize_meta, "vocab": deserialize_vocab}, exclude
+            bytes_data,
+            {"meta": deserialize_meta, "vocab": self.vocab.from_bytes},
+            exclude,
         )
 
         return self
@@ -517,10 +516,12 @@ class WikiKB(KnowledgeBase):
                 (
                     self._language,
                     self._paths,
-                    self._embedding_dim,
+                    self.entity_vector_length,
                     self._top_k_aliases,
+                    self._top_k_entities_alias,
                     self._top_k_entities_fts,
                     self._threshold_alias,
+                    self._n_trees,
                     self._hashes,
                 ),
                 p,
@@ -553,11 +554,13 @@ class WikiKB(KnowledgeBase):
                 meta_info = pickle.load(file)
                 self._language = meta_info[0]
                 self._paths = meta_info[1]
-                self._embedding_dim = meta_info[2]
+                self.entity_vector_length = meta_info[2]
                 self._top_k_aliases = meta_info[3]
-                self._top_k_entities_fts = meta_info[4]
-                self._threshold_alias = meta_info[5]
-                self._hashes = meta_info[7]
+                self._top_k_entities_alias = meta_info[4]
+                self._top_k_entities_fts = meta_info[5]
+                self._threshold_alias = meta_info[6]
+                self._n_trees = meta_info[7]
+                self._hashes = meta_info[8]
 
                 self._init_annoy_from_file()
                 for file_id in ("annoy", "db"):

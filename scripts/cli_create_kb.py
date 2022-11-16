@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import spacy
-import typer
 
 from extraction import get_paths
 from kb import WikiKB
@@ -35,7 +34,7 @@ def main(vectors_model: str, language: str):
     #     "The New York Knicks played the Boston Celtics today. New York beat Boston by 12 points."
     # )
     # mentions2 = [doc[1:4], doc[6:8], doc[10:12], doc[13:14]]
-    # cands = list(wkb.get_candidates_all([mentions1, mentions2]))
+    # cands = list(kb.get_candidates_all([mentions1, mentions2]))
     # x = 3
 
     # Build Annoy index.
@@ -51,4 +50,5 @@ def main(vectors_model: str, language: str):
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    main("en_core_web_sm", "en")
+    # typer.run(main)
