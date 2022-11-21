@@ -73,10 +73,13 @@ class WikiKB(KnowledgeBase):
         if os.path.exists(self._paths["annoy"]):
             self._init_annoy_from_file()
 
-    def build_embeddings_index(self, nlp: Language, n_jobs: int = -1) -> None:
+    def build_embeddings_index(
+        self, nlp: Language, n_jobs: int = -1, batch_size: int = 2**15
+    ) -> None:
         """Constructs index for embeddings with Annoy and stores them in an index file.
         nlp (Language): Pipeline with tok2vec for inferring embeddings.
         n_jobs (int): Number of jobs to use for inferring entity embeddings and building the index.
+        batch_size (int): Number of entities to request at once.
         """
 
         logger = logging.getLogger(__name__)
@@ -84,7 +87,6 @@ class WikiKB(KnowledgeBase):
         # Initialize ANN index.
         self._annoy = annoy.AnnoyIndex(self.entity_vector_length, "angular")
         self._annoy.on_disk_build(str(self._paths["annoy"]))
-        batch_size = 100000
 
         row_count = (
             self._db_conn.cursor()
