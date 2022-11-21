@@ -4,4 +4,4 @@ pyyaml
 tqdm
 prettytable
 annoy
-sqlite-spellfix
+sqlite-spellfix @ git+https://github.com/rmitsch/sqlite-spellfix.git@fix/windows-build
