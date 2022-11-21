@@ -74,14 +74,13 @@ class WikiKB(KnowledgeBase):
             self._init_annoy_from_file()
 
     def build_embeddings_index(
-        self, nlp: Language, n_jobs: int = -1, batch_size: int = 2**15
+        self, nlp: Language, n_jobs: int = -1, batch_size: int = 2**14
     ) -> None:
         """Constructs index for embeddings with Annoy and stores them in an index file.
         nlp (Language): Pipeline with tok2vec for inferring embeddings.
         n_jobs (int): Number of jobs to use for inferring entity embeddings and building the index.
         batch_size (int): Number of entities to request at once.
         """
-
         logger = logging.getLogger(__name__)
 
         # Initialize ANN index.
