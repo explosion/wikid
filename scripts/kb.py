@@ -24,6 +24,12 @@ from extraction.utils import (
 )
 
 
+# Iterable of entity candidates for a single mention.
+_MentionCandidates = Iterable[Candidate]
+# Iterable of _MentionCandidates for a single doc.
+_DocCandidates = Iterable[_MentionCandidates]
+
+
 class WikiKB(KnowledgeBase):
     """Knowledge base handling storage and access to Wikidata/Wikipedia data."""
 
@@ -170,12 +176,12 @@ class WikiKB(KnowledgeBase):
 
     def get_candidates_all(
         self, mentions: Iterator[Iterable[Span]]
-    ) -> Iterator[Iterable[Iterable[Candidate]]]:
+    ) -> Iterator[_DocCandidates]:
         """
         Retrieve candidate entities for specified mentions per document. If no candidate is found for a given mention,
         an empty list is returned.
         mentions (Iterator[Iterable[Span]]): Mentions per documents for which to get candidates.
-        YIELDS (Iterator[Iterable[Iterable[Candidate]]]): Identified candidates per document.
+        YIELDS (Iterator[_DocCandidates]): Identified candidates per document.
         """
         for mentions_in_doc in mentions:
             mentions_in_doc = tuple(mentions_in_doc)
