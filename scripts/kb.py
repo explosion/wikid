@@ -300,7 +300,7 @@ class WikiKB(KnowledgeBase):
             - entity ID,
             - maximum prior probability over all aliases per entity,
             - sum of occurences in Wikipedia over all aliases per entity,
-            - min. lexical distance over all over all aliases per entity,
+            - min. lexical distance over all aliases per entity,
             - row ID of entity (relevant for linking to other tables).
         """
         # Subquery to fetch alias values for single mention.
