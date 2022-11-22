@@ -12,6 +12,7 @@ import numpy
 import spacy
 import srsly
 import tqdm
+import wasabi
 from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
@@ -82,6 +83,14 @@ class WikiKB(KnowledgeBase):
         batch_size (int): Number of entities to request at once.
         """
         logger = logging.getLogger(__name__)
+
+        if os.path.exists(self._paths["annoy"]):
+            wasabi.msg.fail(
+                title="Embeddings index already exists.",
+                text=f"Delete {self._paths['annoy']} manually or with `spacy project run delete_embeddings_index` to "
+                f"generate new index.",
+                exits=1,
+            )
 
         # Initialize ANN index.
         self._annoy = annoy.AnnoyIndex(self.entity_vector_length, "angular")
@@ -281,7 +290,12 @@ class WikiKB(KnowledgeBase):
         """Fetches candidates for mentions by fuzzily matching aliases to the mentions.
         mentions (Tuple[Span, ..]): List of mentions for which to fetch candidates.
         RETURN List[Dict[str, Dict[str, Union[str, int, float]]]]: List of candidates per mention, sorted by distance
-            to mention, (3) occurence count in Wikipedia.
+            to mention. Each candidate entry includes:
+            - entity ID,
+            - maximum prior probability over all aliases per entity,
+            - sum of occurences in Wikipedia over all over all aliases per entity,
+            - min. lexical distance over all over all aliases per entity,
+            - row ID of entity (relevant for linking to other tables).
         """
         # Subquery to fetch alias values for single mention.
         mention_subquery = f"""

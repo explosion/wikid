@@ -6,6 +6,7 @@ import sqlite3
 
 import sqlite_spellfix
 import tqdm
+import wasabi
 
 from . import schemas
 from . import wikidata
@@ -84,8 +85,12 @@ def parse(
     """
     logger = get_logger(__file__)
     _paths = get_paths(language)
-    msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
-    assert not os.path.exists(_paths["db"]), msg
+    if os.path.exists(_paths["db"]):
+        wasabi.msg.fail(
+            title="Database already exists.",
+            text=f"Delete {_paths['db']} manually or with `spacy project run delete_wiki_db` to generate new DB.",
+            exits=1,
+        )
 
     db_conn = db_conn if db_conn else establish_db_connection(language)
     with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:

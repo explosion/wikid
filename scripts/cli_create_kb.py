@@ -18,24 +18,26 @@ def main(vectors_model: str, language: str):
     logger = logging.getLogger(__name__)
     logger.info("Constructing knowledge base.")
 
+    output_dir = Path(os.path.abspath(__file__)).parent.parent / "output"
     nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
+    paths = {
+        "db": get_paths(language)["db"],
+        "kb": output_dir / language / "kb",
+        "nlp": output_dir / language / "nlp",
+        "annoy": get_paths(language)["db"].parent / "wiki.annoy",
+    }
+
     kb = WikiKB(
-        nlp.vocab,
-        nlp(".").vector.shape[0],
-        get_paths(language)["db"],
-        get_paths(language)["db"].parent / "wiki.annoy",
-        language,
+        nlp.vocab, nlp(".").vector.shape[0], paths["db"], paths["annoy"], language
     )
 
     # Build Annoy index.
     kb.build_embeddings_index(nlp)
 
     # Serialize knowledge base & pipeline.
-    output_dir = Path(os.path.abspath(__file__)).parent.parent / "output"
-    kb.to_disk(output_dir / language / "kb")
-    nlp_dir = output_dir / language / "nlp"
-    os.makedirs(nlp_dir, exist_ok=True)
-    nlp.to_disk(nlp_dir)
+    kb.to_disk(paths["kb"])
+    os.makedirs(paths["nlp"], exist_ok=True)
+    nlp.to_disk(paths["nlp"])
     logger.info("Successfully constructed knowledge base.")
 
 
