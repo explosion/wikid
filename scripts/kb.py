@@ -84,7 +84,7 @@ class WikiKB(KnowledgeBase):
         """
         logger = logging.getLogger(__name__)
 
-        if os.path.exists(self._paths["annoy"]):
+        if self._annoy:
             wasabi.msg.fail(
                 title="Embeddings index already exists.",
                 text=f"Delete {self._paths['annoy']} manually or with `spacy project run delete_embeddings_index` to "
