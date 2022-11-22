@@ -50,7 +50,7 @@ class WikiKB(KnowledgeBase):
             if Annoy index file already exists.
         top_k_aliases (int): Top k aliases matches to consider. An alias may be associated with more than one entity, so
             this parameter does _not_ necessarily correspond to the the maximum number of identified candidates. For
-            that use top_k_alias_entity.
+            that use top_k_entities_alias.
         top_k_entities_alias (int): Top k entities to consider in list of alias matches. Equals maximum number of
             candidate entities found via alias search.
         top_k_entities_fts (int): Top k of full-text search matches to consider. Equals maximum number of candidate entities
