@@ -311,7 +311,7 @@ class WikiKB(KnowledgeBase):
         """
 
         grouped_rows: Dict[str, List[Dict[str, Union[str, int, float]]]] = {}
-        for row in [
+        for grouped_row in [
             dict(row)
             for row in self._db_conn.execute(
                 """
@@ -374,8 +374,8 @@ class WikiKB(KnowledgeBase):
                 ),
             ).fetchall()
         ]:
-            mention = row.pop("mention")
-            grouped_rows[mention] = [*grouped_rows.get(mention, []), row]
+            mention = grouped_row.pop("mention")
+            grouped_rows[mention] = [*grouped_rows.get(mention, []), grouped_row]
 
         return grouped_rows
 
