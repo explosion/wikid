@@ -19,7 +19,7 @@ def main(vectors_model: str, language: str):
     logger.info("Constructing knowledge base.")
 
     output_dir = Path(os.path.abspath(__file__)).parent.parent / "output"
-    nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
+    nlp = spacy.load(vectors_model, enable=["tok2vec"], disable=[])
     paths = {
         "db": get_paths(language)["db"],
         "kb": output_dir / language / "kb",
@@ -36,8 +36,6 @@ def main(vectors_model: str, language: str):
 
     # Serialize knowledge base & pipeline.
     kb.to_disk(paths["kb"])
-    os.makedirs(paths["nlp"], exist_ok=True)
-    nlp.to_disk(paths["nlp"])
     logger.info("Successfully constructed knowledge base.")
 
 
