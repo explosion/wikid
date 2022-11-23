@@ -78,10 +78,9 @@ commands:
     deps:
       - "output/${vars.language}/wiki.annoy"
 
-  - name: clean
-    help: "Delete all generated artifacts except for SQLite database."
+  - name: delete_kb
+    help: "Deletes knowledge base generated in step `create_kb`."
     script:
-      - "rm -rf output/${vars.language}/kb output/${vars.language}/nlp"
+      - "rm -rf output/${vars.language}/kb"
     deps:
       - "output/${vars.language}/kb"
-      - "output/${vars.language}/nlp"
