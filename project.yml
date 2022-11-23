@@ -79,7 +79,7 @@ commands:
       - "output/${vars.language}/wiki.annoy"
 
   - name: delete_kb
-    help: "Deletes knowledge base generted in step `create_kb`."
+    help: "Deletes knowledge base generated in step `create_kb`."
     script:
       - "rm -rf output/${vars.language}/kb"
     deps:
