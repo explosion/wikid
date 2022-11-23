@@ -492,7 +492,9 @@ class WikiKB(KnowledgeBase):
             self._hashes["db"] = meta_info[8]
             self._hashes["annoy"] = meta_info[9]
 
+            self._db_conn = establish_db_connection(self._language, self._paths["db"])
             self._init_annoy_from_file()
+
             for file_id in ("annoy", "db"):
                 assert self._hashes[file_id] == self._hash_file(
                     self._paths[file_id]
@@ -583,7 +585,11 @@ class WikiKB(KnowledgeBase):
                 self._n_trees = meta_info[7]
                 self._hashes = meta_info[8]
 
+                self._db_conn = establish_db_connection(
+                    self._language, self._paths["db"]
+                )
                 self._init_annoy_from_file()
+
                 for file_id in ("annoy", "db"):
                     assert self._hashes[file_id] == self._hash_file(
                         self._paths[file_id]
@@ -594,60 +600,3 @@ class WikiKB(KnowledgeBase):
             "vocab.json": lambda p: self.vocab.strings.from_disk(p),
         }
         spacy.util.from_disk(path, deserialize, exclude)
-
-    @staticmethod
-    def _pick_candidate_sequences(
-        embeddings: numpy.ndarray, beam_width: int
-    ) -> List[Tuple[List[int], float]]:
-        """Pick sequences of candidates, ranked by their cohesion. Cohesion is measured as the average cosine similarity
-        between the average embedding in a sequence and the individual embeddings.
-        Each row contains all candidates per mention. Selects heuristically via beam search.
-        Modified from https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/.
-        embeddings (numpy.ndarray): 2D matrix with embedding vectors per candidate.
-        beam_width (int): Beam width.
-        RETURN (List[Tuple[List[int], float]]): List of sequences of candidate indices in embeddings matrix & their
-            corresponding cohesion score.
-        """
-        # todo add shape check (3D) for embeddings
-        # todo step-by-step debugging with real data to verify assumptions
-        # todo ensure correct shape processing in numpy operations
-        sequences: List[Tuple[List[int], float]] = [([], 0.0)]
-        dim = len(embeddings[0][0])
-
-        for row_idx, row in enumerate(embeddings):
-            all_candidates: List[Tuple[List[int], float]] = []
-            # Expand each candidate.
-            for i in range(len(sequences)):
-                sequence = sequences[i]
-                # Compute sum of embeddings already in this sequence. If this is the first row and `sequences` is hence
-                # empty, we assume a vector of zeroes.
-                seq_prev_embeddings = [
-                    embeddings[_row_idx][col_idx]
-                    for _row_idx, col_idx in enumerate(sequence[0])
-                ]
-                seq_sum_prev_embeddings = (
-                    numpy.sum(seq_prev_embeddings) if row_idx > 0 else numpy.zeros(dim)
-                )
-
-                for j in range(len(row)):
-                    # Compute average sequence embedding, including potential next sequence element.
-                    seq_avg_embedding = numpy.sum(seq_sum_prev_embeddings, row[j]) / (
-                        row_idx + 1
-                    )
-                    seq_embeddings = [*seq_prev_embeddings, row[j]]
-
-                    # Compute cohesion as cosine similarity.
-                    cohesion = numpy.mean(
-                        (seq_avg_embedding @ seq_embeddings)
-                        / (
-                            numpy.linalg.norm(seq_avg_embedding)
-                            * numpy.linalg.norm(seq_embeddings)
-                        )
-                    )
-                    candidate = [(*sequence[0], j), cohesion]
-                    all_candidates.append(candidate)
-
-            # Order all candidates by cohesion, select beam_width best sets.
-            sequences = sorted(all_candidates, key=lambda tup: tup[1])[:beam_width]  # type: ignore
-
-        return sequences
