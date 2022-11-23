@@ -18,7 +18,7 @@ from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
-from .extraction.utils import (
+from extraction.utils import (
     establish_db_connection,
     load_entities,
 )
