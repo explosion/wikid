@@ -3,13 +3,13 @@ description: |
   [![Azure Pipelines](https://img.shields.io/azure-devops/build/explosion-ai/public/32/main.svg?logo=azure-pipelines&style=flat-square&label=build)](https://dev.azure.com/explosion-ai/public/_build?definitionId=32)
   [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
   <br/>
-  _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database and a spaCy `KnowledgeBase` from Wikipedia & 
+  _No REST for the `wikid`_ :jack_o_lantern: Generate an SQLite database and a spaCy `KnowledgeBase` from Wikipedia & 
   Wikidata dumps. `wikid` was designed with the use case of named entity linking (NEL) with spaCy in mind.
   <br/>
   Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 vars:
-  version: "0.0.1"
+  version: "0.0.2"
   language: "en"
   vectors_model: "en_core_web_lg"
   filter: "True"
@@ -44,7 +44,7 @@ commands:
   - name: parse
     help: "Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!"
     script:
-      - "env PYTHONPATH=scripts python ./scripts/parse.py ${vars.language} ${vars.filter}"
+      - "env PYTHONPATH=scripts python ./scripts/cli_parse.py ${vars.language} ${vars.filter}"
     outputs:
       - "output/${vars.language}/wiki.sqlite3"
 
@@ -56,24 +56,32 @@ commands:
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language}"
+      - "env PYTHONPATH=scripts python ./scripts/cli_create_kb.py ${vars.vectors_model} ${vars.language}"
     deps:
       - "output/${vars.language}/wiki.sqlite3"
     outputs:
       - "output/${vars.language}/kb"
       - "output/${vars.language}/nlp"
+      - "output/${vars.language}/wiki.annoy"
 
   - name: delete_db
-    help: "Deletes SQLite database generated in step parse with data parsed from Wikidata and Wikipedia dump."
+    help: "Deletes SQLite database generated in step `parse` with data parsed from Wikidata and Wikipedia dump."
     script:
       - "rm -f output/${vars.language}/wiki.sqlite3"
     deps:
       - "output/${vars.language}/wiki.sqlite3"
 
+  - name: delete_embeddings_index
+    help: "Deletes embeddings index generated in step `create_kb`."
+    script:
+      - "rm -f output/${vars.language}/wiki.annoy"
+    deps:
+      - "output/${vars.language}/wiki.annoy"
+
   - name: clean
     help: "Delete all generated artifacts except for SQLite database."
     script:
-      - "rm -f output/${vars.language}/kb output/${vars.language}/nlp"
+      - "rm -rf output/${vars.language}/kb output/${vars.language}/nlp"
     deps:
       - "output/${vars.language}/kb"
       - "output/${vars.language}/nlp"

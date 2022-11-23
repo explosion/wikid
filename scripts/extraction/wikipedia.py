@@ -1,7 +1,7 @@
 """ Functionalities for processing Wikipedia dump.
 Modified from https://github.com/explosion/projects/blob/master/nel-wikipedia/wikipedia_processor.py.
 """
-
+import io
 import re
 import bz2
 import sqlite3
@@ -77,14 +77,14 @@ def _read_entity_title_id_map(db_conn: sqlite3.Connection) -> Dict[str, str]:
             INNER JOIN entities_texts et ON
                 et.ROWID = e.ROWID
         """
-        )
+        ).fetchall()
     }
 
 
 def read_prior_probs(
     wikipedia_input_path: Union[str, Path],
     db_conn: sqlite3.Connection,
-    batch_size: int = 5000,
+    batch_size: int = 20000,
     limit: Optional[int] = None,
 ) -> None:
     """
@@ -94,11 +94,9 @@ def read_prior_probs(
     wikipedia_input_path (Union[str, Path]): Path to Wikipedia dump.
     batch_size (int): DB batch size.
     db_conn (sqlite3.Connection): Database connection.
-    n_article_limit (Optional[int]): Number of articles/entities to process.
+    n_article_limit (Optional[int]): Number of articles to process.
     """
 
-    read_id = False
-    current_article_id = None
     entity_title_to_id = _read_entity_title_id_map(db_conn)
 
     def write_to_db(_aliases_for_entities) -> None:
@@ -107,9 +105,12 @@ def read_prior_probs(
         """
         db_conn.cursor().executemany(
             """
-            INSERT INTO aliases_for_entities (alias, entity_id, count) VALUES (?, ?, ?)
-            ON CONFLICT (alias, entity_id) DO UPDATE SET
-                count=count + excluded.count
+            UPDATE aliases_for_entities
+            SET
+                count=count + ?
+            WHERE
+                alias=? AND
+                entity_id=?
             """,
             _aliases_for_entities,
         )
@@ -120,47 +121,32 @@ def read_prior_probs(
         with tqdm.tqdm(
             desc="Parsing alias-entity prior probabilities", **pbar_params
         ) as pbar:
-            line = file.readline()
-            while line and (not limit or pbar.n < limit):
+            for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):
+                if limit and pbar.n >= limit:
+                    break
+
                 clean_line = line.strip().decode("utf-8")
+                aliases, entities, normalizations = _get_wp_links(clean_line)
+                for alias, entity_title, norm in zip(aliases, entities, normalizations):
+                    _store_alias(
+                        alias,
+                        entity_title,
+                        normalize_alias=norm,
+                        normalize_entity=True,
+                    )
 
-                # we attempt at reading the article's ID (but not the revision or contributor ID)
-                if "<revision>" in clean_line or "<contributor>" in clean_line:
-                    read_id = False
-                if "<page>" in clean_line:
-                    read_id = True
-
-                if read_id:
-                    ids = id_regex.search(clean_line)
-                    if ids:
-                        current_article_id = ids[0]
-
-                # only processing prior probabilities from true training (non-dev) articles
-                if not is_dev(current_article_id):
-                    aliases, entities, normalizations = _get_wp_links(clean_line)
-                    for alias, entity_title, norm in zip(
-                        aliases, entities, normalizations
-                    ):
-                        _store_alias(
-                            alias,
-                            entity_title,
-                            normalize_alias=norm,
-                            normalize_entity=True,
-                        )
-
-                line = file.readline()
                 pbar.update(1)
 
     # write all aliases and their entities and count occurrences to file
     with tqdm.tqdm(
         desc="Persisting alias-entity prior probabilities", total=len(map_alias_to_link)
     ) as pbar:
-        aliases_for_entities: List[Tuple[str, str, int]] = []
+        aliases_for_entities: List[Tuple[int, str, str]] = []
         for alias, alias_dict in map_alias_to_link.items():
             for entity_title, count in alias_dict.items():
                 if entity_title in entity_title_to_id:
                     aliases_for_entities.append(
-                        (alias, entity_title_to_id[entity_title], count)
+                        (count, alias, entity_title_to_id[entity_title])
                     )
             if pbar.n % batch_size == 0:
                 write_to_db(aliases_for_entities)
@@ -261,7 +247,7 @@ def read_texts(
     db_conn: sqlite3.Connection,
     batch_size: int = 10000,
     limit: Optional[int] = None,
-    n_char_limit: int = 1000,
+    n_char_limit: int = 600,
     lang: str = "en",
 ) -> None:
     """
@@ -270,7 +256,7 @@ def read_texts(
     db_conn (sqlite3.Connection): DB connection.
     limit (Optional[int]): Max. number of articles to process. If None, all are processed.
     n_char_limit (Optional[int]): Max. number of characters to process per article.
-    lang (str): Language with which to filter entity information.
+    lang (str): Language with which to filter qid information.
     """
     read_ids: Set[str] = set()
     entity_title_to_id = _read_entity_title_id_map(db_conn)
@@ -286,8 +272,8 @@ def read_texts(
         _article_text_records: List[Tuple[str, str, str]],
     ) -> None:
         """Writes records to list.
-        _article_records (List[Tuple[str, str]]): `articles`entries with entity ID, ID.
-        _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with entity ID, title, content.
+        _article_records (List[Tuple[str, str]]): `articles`entries with qid ID, ID.
+        _article_texts_records (List[Tuple[str, str, str]]): `articles_texts` entries with qid ID, title, content.
         """
         db_conn.cursor().executemany(
             "INSERT INTO articles (entity_id, id) VALUES (?, ?)",
@@ -320,7 +306,7 @@ def read_texts(
                 skip_terms = set(yaml.safe_load(stream)[lang])
             skip_article = False
 
-            for line in file:
+            for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):
                 if limit and pbar.n >= limit:
                     break
 
