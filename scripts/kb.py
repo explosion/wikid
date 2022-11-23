@@ -18,7 +18,7 @@ from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
-from extraction.utils import (
+from .extraction.utils import (
     establish_db_connection,
     load_entities,
 )
@@ -657,3 +657,11 @@ class WikiKB(KnowledgeBase):
             ), f"File with internal ID {file_id} does not match deserialized hash."
 
         return kb
+
+    def __len__(self) -> int:
+        """Returns number of entities in KnowledgeBase database.
+        RETURNS (int): Number of entities in KnowledgeBase database.
+        """
+        return self._db_conn.execute("SELECT count(*) FROM entities").fetchone()[
+            "count(*)"
+        ]
