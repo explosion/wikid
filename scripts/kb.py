@@ -600,3 +600,60 @@ class WikiKB(KnowledgeBase):
             "vocab.json": lambda p: self.vocab.strings.from_disk(p),
         }
         spacy.util.from_disk(path, deserialize, exclude)
+
+    @classmethod
+    def generate_from_disk(
+        cls, path: Union[str, Path], exclude: Iterable[str] = SimpleFrozenList()
+    ) -> "WikiKB":
+        """
+        Generate WikiKnowledgeBase instance from disk.
+        path (Union[str, Path]): Target file path.
+        exclude (Iterable[str]): List of components to exclude.
+        return (WikiKB): Generated WikiKB instance.
+        """
+        path = spacy.util.ensure_path(path)
+        if not path.exists():
+            raise ValueError(spacy.Errors.E929.format(loc=path))
+        if not path.is_dir():
+            raise ValueError(spacy.Errors.E928.format(loc=path))
+        args: Dict[str, Any] = {"vocab": Vocab(strings=["."])}
+        hashes: Dict[str, str] = {}
+
+        def deserialize_meta_info(file_path: Path) -> None:
+            """
+            Deserializes meta info.
+            file_path (Path): File path.
+            """
+            with open(file_path, "rb") as file:
+                meta_info = pickle.load(file)
+                args["language"] = meta_info[0]
+                args["db_path"] = meta_info[1]["db"]
+                args["annoy_path"] = meta_info[1]["annoy"]
+                args["entity_vector_length"] = meta_info[2]
+                args["top_k_aliases"] = meta_info[3]
+                args["top_k_entities_alias"] = meta_info[4]
+                args["top_k_entities_fts"] = meta_info[5]
+                args["threshold_alias"] = meta_info[6]
+                args["n_trees"] = meta_info[7]
+                for file_id, file_hash in meta_info[8].items():
+                    hashes[file_id] = file_hash
+
+        spacy.util.from_disk(
+            path,
+            {
+                "meta": lambda p: deserialize_meta_info(p),
+                "vocab.json": lambda p: args["vocab"].strings.from_disk(p),
+            },
+            exclude,
+        )
+
+        # Initialize instance, set hashes manually since they aren't specified on initialization.
+        kb = cls(**args)
+        kb._hashes = hashes
+        # Check for hash equality (mismatch indicates there might be an issue with DB/Annoy file paths or files).
+        for file_id in ("annoy", "db"):
+            assert kb._hashes[file_id] == kb._hash_file(
+                kb._paths[file_id]
+            ), f"File with internal ID {file_id} does not match deserialized hash."
+
+        return kb

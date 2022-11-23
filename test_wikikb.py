@@ -138,8 +138,8 @@ def _kb(_db_path) -> WikiKB:
     return kb
 
 
-def test_kb_generation(_kb) -> None:
-    """Tests KB generation."""
+def test_initialization(_kb) -> None:
+    """Tests KB intialization."""
     # Check DB content.
     assert all(
         [
@@ -169,7 +169,7 @@ def test_kb_generation(_kb) -> None:
 
 
 @pytest.mark.parametrize("method", ["bytes", "disk"])
-def test_kb_serialization(_kb, method: str) -> None:
+def test_serialization(_kb, method: str) -> None:
     """Tests KB serialization (to and from byte strings, to and from disk).
     method (str): Method to use for serialization. Has to be one of ("bytes", "disk").
     """
@@ -201,10 +201,28 @@ def test_kb_serialization(_kb, method: str) -> None:
             _kb.to_disk(kb_file_path)
             kb.from_disk(kb_file_path)
 
-    # Verify KB's attributes are identical to serialized KB instance.
-    assert all(
+    assert _verify_kb_equality(_kb, kb)
+
+
+def test_factory_method(_kb) -> None:
+    """Tests factory method to generate WikiKB instance from file."""
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        kb_file_path = Path(tmp_dir_name) / "kb"
+        _kb.to_disk(kb_file_path)
+        kb = WikiKB.generate_from_disk(kb_file_path)
+
+    assert _verify_kb_equality(_kb, kb)
+
+
+def _verify_kb_equality(kb1: WikiKB, kb2: WikiKB) -> bool:
+    """Checks whether kb1 and kb2 have identical values for all arguments (doesn't check on DB equality).
+    kb1 (WikiKB): First instance.
+    kb2 (WikiKB): Second instance.
+    RETURNS (bool): Whether kb1 and kb2 have identical values for all arguments.
+    """
+    return all(
         [
-            getattr(kb, attr_name) == getattr(_kb, attr_name)
+            getattr(kb1, attr_name) == getattr(kb2, attr_name)
             for attr_name in (
                 "_paths",
                 "_language",
