@@ -18,10 +18,19 @@ from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
-from extraction.utils import (
-    establish_db_connection,
-    load_entities,
-)
+# This is quite bad. Context: the custom code file that may be included in training (e.g. in the NEL benchmark) is
+# missing the correct PYTHONPATH. This can lead to import errors, and so far this is the only way I've found to reliably
+# prevent this.
+try:
+    from extraction.utils import (
+        establish_db_connection,
+        load_entities,
+    )
+except ModuleNotFoundError:
+    from .extraction.utils import (
+        establish_db_connection,
+        load_entities,
+    )
 
 
 # Iterable of entity candidates for a single mention.
@@ -392,7 +401,7 @@ class WikiKB(KnowledgeBase):
         for i, mention in enumerate(mentions):
             query += f"""
                 SELECT
-                    '{mention.text}' as mention,
+                    {i} as mention_idx,
                     match.score,
                     match.entity_id,
                     match.rowid,
@@ -405,7 +414,7 @@ class WikiKB(KnowledgeBase):
                     FROM
                         entities_texts et
                     WHERE
-                        entities_texts MATCH '{mention.text}'
+                        entities_texts MATCH '{mention.text.replace("'", " ").replace('"', ' ')}'
                     ORDER BY
                         bm25(entities_texts)
                     LIMIT {self._top_k_entities_fts}
@@ -425,7 +434,7 @@ class WikiKB(KnowledgeBase):
 
         grouped_rows: Dict[str, List[Dict[str, Union[str, int, float]]]] = {}
         for row in [dict(row) for row in self._db_conn.execute(query).fetchall()]:
-            mention = row.pop("mention")
+            mention = mentions[row.pop("mention_idx")]
             grouped_rows[mention] = [*grouped_rows.get(mention, []), row]
 
         return grouped_rows
