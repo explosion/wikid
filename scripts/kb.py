@@ -424,7 +424,7 @@ class WikiKB(KnowledgeBase):
                 INNER JOIN aliases_for_entities afe ON
                     e.id = afe.entity_id
                 GROUP BY
-                    mention,
+                    mention_idx,
                     match.score,
                     match.entity_id,
                     match.rowid
