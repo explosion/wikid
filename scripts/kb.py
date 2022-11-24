@@ -414,7 +414,7 @@ class WikiKB(KnowledgeBase):
                     FROM
                         entities_texts et
                     WHERE
-                        entities_texts MATCH '{mention.text.replace("'", " ").replace('"', ' ')}'
+                        entities_texts MATCH '"{mention.text.replace("'", " ").replace('"', ' ')}"'
                     ORDER BY
                         bm25(entities_texts)
                     LIMIT {self._top_k_entities_fts}
