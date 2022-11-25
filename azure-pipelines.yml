@@ -31,7 +31,7 @@ jobs:
                 pip install pytest
                 pip install wheel
                 pip install -r requirements.txt
-            displayName: 'Install test dependencies'
+            displayName: 'Install (test) dependencies'
 
           - script: env PYTHONPATH=scripts python -m pytest
             displayName: 'Run pytest'
