@@ -679,9 +679,13 @@ class WikiKB(KnowledgeBase):
         return kb
 
     def __len__(self) -> int:
-        """Returns number of entities in KnowledgeBase database.
+        """Returns number of entities in KnowledgeBase database (0 if DB connection hasn't been initialized yet).
         RETURNS (int): Number of entities in KnowledgeBase database.
         """
-        return self._db_conn.execute("SELECT count(*) FROM entities").fetchone()[
-            "count(*)"
-        ]
+        return (
+            self._db_conn.execute("SELECT count(*) FROM entities").fetchone()[
+                "count(*)"
+            ]
+            if self._db_conn
+            else 0
+        )
