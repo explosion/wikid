@@ -244,7 +244,7 @@ class WikiKB(KnowledgeBase):
                     candidates[i].append(
                         WikiKBCandidate(
                             mention=str(mention),
-                            entity_id="2",
+                            entity_id=cand_data["entity_id"],
                             entity_vector=list(
                                 next(iter(self._get_vectors([cand_data["rowid"]])))
                             ),
@@ -256,7 +256,7 @@ class WikiKB(KnowledgeBase):
                     candidates[i].append(
                         WikiKBCandidate(
                             mention=str(mention),
-                            entity_id="2",
+                            entity_id=cand_data["entity_id"],
                             entity_vector=list(
                                 next(iter(self._get_vectors([cand_data["rowid"]])))
                             ),
