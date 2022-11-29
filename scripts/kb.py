@@ -539,7 +539,7 @@ class WikiKB(KnowledgeBase):
             for file_id in ("annoy", "db"):
                 assert self._hashes[file_id] == self._hash_file(
                     self._paths[file_id]
-                ), f"File with internal ID {file_id} does not match deserialized hash."
+                ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
         spacy.util.from_bytes(
             bytes_data,
