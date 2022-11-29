@@ -16,6 +16,7 @@ import tqdm
 import wasabi
 from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase, Candidate
+from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
@@ -34,8 +35,34 @@ except ModuleNotFoundError:
     )
 
 
+class WikiKBCandidate(BaseCandidate):
+    """Candidate subclass used by WikiKB."""
+
+    def __init__(
+        self,
+        mention: str,
+        entity_id: Union[int, str],
+        entity_vector: List[float],
+        prior_prob: float,
+    ):
+        super().__init__(mention, entity_id, entity_vector)
+        self._prior_prob = prior_prob
+
+    @property
+    def prior_prob(self) -> float:
+        """Returns prior probability for this mention/alias and entity.
+        RETURNS (float): Prior probability for this mention/alias and entity.
+        """
+        return self._prior_prob
+
+    @property
+    def entity_(self) -> str:
+        """RETURNS (str): Entity name."""
+        return self._entity_id
+
+
 # Iterable of entity candidates for a single mention.
-_MentionCandidates = Iterable[Candidate]
+_MentionCandidates = Iterable[WikiKBCandidate]
 # Iterable of _MentionCandidates for a single doc.
 _DocCandidates = Iterable[_MentionCandidates]
 
@@ -208,38 +235,32 @@ class WikiKB(KnowledgeBase):
             alias_matches = self._fetch_candidates_by_alias(mentions_in_doc)
             fts_matches = self._fetch_candidates_by_fts(mentions_in_doc)
             # Candidates for each mention per document.
-            candidates: List[List[Candidate]] = []
+            candidates: List[List[WikiKBCandidate]] = []
 
             for i, mention in enumerate(mentions_in_doc):
                 candidates.append([])
 
                 for cand_data in alias_matches.get(mention.text, []):
                     candidates[i].append(
-                        Candidate(
-                            kb=self,
-                            entity_freq=cand_data["sum_occurence_count"],
-                            prior_prob=cand_data["max_prior_prob"],
-                            entity_vector=next(
-                                iter(self._get_vectors([cand_data["rowid"]]))
+                        WikiKBCandidate(
+                            mention=str(mention),
+                            entity_id="2",
+                            entity_vector=list(
+                                next(iter(self._get_vectors([cand_data["rowid"]])))
                             ),
-                            # Hashes aren't used by WikiKB.
-                            entity_hash=0,
-                            alias_hash=0,
+                            prior_prob=cand_data["max_prior_prob"],
                         )
                     )
 
                 for cand_data in fts_matches.get(mention.text, []):
                     candidates[i].append(
-                        Candidate(
-                            kb=self,
-                            entity_freq=cand_data["sum_occurence_count"],
-                            prior_prob=-1,
-                            entity_vector=next(
-                                iter(self._get_vectors([cand_data["rowid"]]))
+                        WikiKBCandidate(
+                            mention=str(mention),
+                            entity_id="2",
+                            entity_vector=list(
+                                next(iter(self._get_vectors([cand_data["rowid"]])))
                             ),
-                            # Hashes aren't used by WikiKB.
-                            entity_hash=0,
-                            alias_hash=0,
+                            prior_prob=-1,
                         )
                     )
 
