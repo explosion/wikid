@@ -15,7 +15,7 @@ import srsly
 import tqdm
 import wasabi
 from spacy import Vocab, Language
-from spacy.kb import KnowledgeBase, Candidate
+from spacy.kb import KnowledgeBase
 from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
@@ -266,14 +266,14 @@ class WikiKB(KnowledgeBase):
 
             yield candidates
 
-    def get_candidates(self, mention: Span) -> Iterable[Candidate]:
+    def get_candidates(self, mention: Span) -> Iterable[WikiKBCandidate]:
         """
         Retrieve candidate entities for specified mention. If no candidate is found for a given mention, an empty list
         is returned.
         mention (Span): Mention for which to get candidates.
         RETURNS (Iterable[Candidate]): Identified candidates.
         """
-        return next(iter(next(self.get_candidates_all([mention]))))
+        return next(iter(next(self.get_candidates_all([[mention]]))))
 
     def _get_vectors(self, rowids: Iterable[int]) -> Iterable[Iterable[float]]:
         """
