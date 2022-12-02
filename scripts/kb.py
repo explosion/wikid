@@ -676,8 +676,8 @@ class WikiKB(KnowledgeBase):
                 args["top_k_entities_fts"] = meta_info[5]
                 args["threshold_alias"] = meta_info[6]
                 args["n_trees"] = meta_info[7]
-                for file_id, file_hash in meta_info[8].items():
-                    hashes[file_id] = file_hash
+                for _file_id, _file_hash in meta_info[8].items():
+                    hashes[_file_id] = _file_hash
 
         spacy.util.from_disk(
             path,
