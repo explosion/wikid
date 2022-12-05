@@ -733,10 +733,14 @@ class WikiKB(KnowledgeBase):
 
     @classmethod
     def generate_from_disk(
-        cls, path: Union[str, Path], exclude: Iterable[str] = SimpleFrozenList()
+        cls,
+        path: Union[str, Path],
+        exclude: Iterable[str] = SimpleFrozenList(),
+        **kwargs,
     ) -> "WikiKB":
         """
-        Generate WikiKnowledgeBase instance from disk.
+        Generate WikiKnowledgeBase instance from disk. Passed kwargs override arguments for __init__() of new instance
+        read from disk.
         path (Union[str, Path]): Target file path.
         exclude (Iterable[str]): List of components to exclude.
         return (WikiKB): Generated WikiKB instance.
@@ -779,7 +783,7 @@ class WikiKB(KnowledgeBase):
         )
 
         # Initialize instance, set hashes manually since they aren't specified on initialization.
-        kb = cls(**args)
+        kb = cls(**{**args, **kwargs})
         kb._hashes = hashes
         # Check for hash equality (mismatch indicates there might be an issue with DB/Annoy file paths or files).
         for file_id in kb._hashes:
