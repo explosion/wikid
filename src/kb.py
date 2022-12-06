@@ -502,10 +502,8 @@ class WikiKB(KnowledgeBase):
         # Subquery to fetch alias values for single mentions. Batched to avoid issues with too many terms in SELECT
         # statement.
         batch_n = 128
-        n_batches = math.ceil(len(mentions) / batch_n)
-        for mention_batch in numpy.array_split(
-            numpy.asarray(mentions, dtype=object), n_batches
-        ):
+        for batch_idx in range(0, len(mentions), batch_n):
+            mention_batch = mentions[batch_idx : batch_idx + batch_n]
             query = ""
             for i, mention in enumerate(mention_batch):
                 query += f"""
