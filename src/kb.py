@@ -33,9 +33,7 @@ from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
-from extraction.schemas import MentionEntity
-
-# This is quite bad. Context: the custom code file that may be included in training (e.g. in the NEL benchmark) is
+# This is quite annoying. Context: the custom code file that may be included in training (e.g. in the NEL benchmark) is
 # missing the correct PYTHONPATH. This can lead to import errors, and so far this is the only way I've found to reliably
 # prevent this.
 try:
@@ -43,11 +41,13 @@ try:
         establish_db_connection,
         load_entities,
     )
+    from extraction.schemas import MentionEntity
 except ModuleNotFoundError:
     from .extraction.utils import (
         establish_db_connection,
         load_entities,
     )
+    from .extraction.schemas import MentionEntity
 
 
 class WikiKBCandidate(BaseCandidate):
