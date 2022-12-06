@@ -729,7 +729,7 @@ class WikiKB(KnowledgeBase):
                 for file_id in self._hashes:
                     assert self._hashes[file_id] == self._hash_file(
                         self._paths[file_id]
-                    ), f"File with internal ID {file_id} does not match deserialized hash."
+                    ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
         deserialize = {
             "meta": lambda p: deserialize_meta_info(p),
@@ -795,7 +795,7 @@ class WikiKB(KnowledgeBase):
         for file_id in kb._hashes:
             assert kb._hashes[file_id] == kb._hash_file(
                 kb._paths[file_id]
-            ), f"File with internal ID {file_id} does not match deserialized hash."
+            ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
         return kb
 
@@ -831,3 +831,11 @@ class WikiKB(KnowledgeBase):
                 file_hash.update(buf)
                 buf = f.read(blocksize)
         return file_hash.hexdigest()
+
+    def update_path(self, file_id: str, path: Path) -> None:
+        """Update path. Includes update of file hash.
+        file_id (str): File ID.
+        path (Path): Path to file.
+        """
+        self._paths[file_id] = path
+        self._update_hash(file_id)
