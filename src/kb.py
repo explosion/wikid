@@ -308,7 +308,7 @@ class WikiKB(KnowledgeBase):
                             )
                         )
 
-            yield candidates_per_mention
+                yield candidates_per_mention
 
     def get_candidates(self, mention: Span) -> Iterable[WikiKBCandidate]:
         """
