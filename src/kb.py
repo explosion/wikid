@@ -369,6 +369,8 @@ class WikiKB(KnowledgeBase):
         mentions (Iterable[str]): mentions to look up.
         RETURNS (List[MentionEntity]): List of MentionEntity instances for mention-alias pairs.
         """
+        mentions = list(mentions)
+
         # Query for fetching matching aliases per mention.
         alias_subquery = "\nUNION ALL\n".join(
             [
@@ -377,21 +379,21 @@ class WikiKB(KnowledgeBase):
                     mention, alias, distance
                 FROM (
                     SELECT
-                        '{mention}' as mention, alias, distance
+                        ? as mention, alias, distance
                     FROM (
                         SELECT
                             alias, 0 as distance
                         FROM
                             aliases_for_entities
                         WHERE
-                            alias = '{mention}'
+                            alias = ?
                         UNION
                         SELECT
                             word as alias, distance
                         FROM
                             aliases
                         WHERE
-                            word MATCH '{mention[:20]}'
+                            word MATCH ?
                             AND top = 5
                     )
                     ORDER BY
@@ -399,8 +401,8 @@ class WikiKB(KnowledgeBase):
                     LIMIT 5
                 )
                 """
-                for mention in mentions
             ]
+            * len(mentions)
         )
 
         query = f"""
@@ -446,7 +448,14 @@ class WikiKB(KnowledgeBase):
                 dict(res)
                 for res in establish_db_connection("", db_path)
                 .cursor()
-                .execute(query)
+                .execute(
+                    query,
+                    [
+                        mention_binding
+                        for mention_bindings in [[mention] * 3 for mention in mentions]
+                        for mention_binding in mention_bindings
+                    ],
+                )
                 .fetchall()
             ]
         ]
