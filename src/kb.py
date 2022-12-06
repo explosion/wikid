@@ -33,6 +33,7 @@ from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span
 from spacy.util import SimpleFrozenList
 
+
 # This is quite annoying. Context: the custom code file that may be included in training (e.g. in the NEL benchmark) is
 # missing the correct PYTHONPATH. This can lead to import errors, and so far this is the only way I've found to reliably
 # prevent this.
@@ -475,7 +476,7 @@ class WikiKB(KnowledgeBase):
                         chunksize=1,
                     ),
                     total=n_batches,
-                    desc="Looking up mentions",
+                    desc="Retrieving mentions",
                     smoothing=0,
                     leave=False,
                 )
@@ -496,51 +497,58 @@ class WikiKB(KnowledgeBase):
         RETURN (Dict[str, List[MentionEntity]]): Lists of candidiates per mention, sorted by (1) mention and (2) BM25
             score.
         """
-        # Subquery to fetch alias values for single mentions.
-        query = ""
-        for i, mention in enumerate(mentions):
-            query += f"""
-                SELECT
-                    {i} as mention_idx,
-                    match.score,
-                    match.entity_id,
-                    match.rowid,
-                    sum(afe.count) as sum_occurence_count
-                FROM (
-                    SELECT
-                        bm25(entities_texts) as score,
-                        et.entity_id,
-                        et.ROWID as rowid
-                    FROM
-                        entities_texts et
-                    WHERE
-                        entities_texts MATCH '"{mention.text.replace("'", " ").replace('"', ' ')}"'
-                    ORDER BY
-                        bm25(entities_texts)
-                    LIMIT {self._top_k_entities_fts}
-                ) match
-                INNER JOIN entities e ON
-                    e.ROWID = match.ROWID
-                INNER JOIN aliases_for_entities afe ON
-                    e.id = afe.entity_id
-                GROUP BY
-                    mention_idx,
-                    match.score,
-                    match.entity_id,
-                    match.rowid
-            """
-            if i < len(mentions) - 1:
-                query += "\nUNION ALL\n"
-
         mention_entities_by_mention: Dict[str, List[MentionEntity]] = {}
-        for row in [dict(row) for row in self._db_conn.execute(query).fetchall()]:
-            mention = mentions[row["mention_idx"]].text
-            mention_entities_by_mention[mention] = [
-                *mention_entities_by_mention.get(mention, []),
-                MentionEntity(
-                    mention=mention, entity_id=row["entity_id"], rowid=row["rowid"]
-                ),
-            ]
+
+        # Subquery to fetch alias values for single mentions. Batched to avoid issues with too many terms in SELECT
+        # statement.
+        batch_n = 128
+        n_batches = math.ceil(len(mentions) / batch_n)
+        for mention_batch in numpy.array_split(
+            numpy.asarray(mentions, dtype=object), n_batches
+        ):
+            query = ""
+            for i, mention in enumerate(mention_batch):
+                query += f"""
+                    SELECT
+                        {i} as mention_idx,
+                        match.score,
+                        match.entity_id,
+                        match.rowid,
+                        sum(afe.count) as sum_occurence_count
+                    FROM (
+                        SELECT
+                            bm25(entities_texts) as score,
+                            et.entity_id,
+                            et.ROWID as rowid
+                        FROM
+                            entities_texts et
+                        WHERE
+                            entities_texts MATCH '"{mention.text.replace("'", " ").replace('"', ' ')}"'
+                        ORDER BY
+                            bm25(entities_texts)
+                        LIMIT {self._top_k_entities_fts}
+                    ) match
+                    INNER JOIN entities e ON
+                        e.ROWID = match.ROWID
+                    INNER JOIN aliases_for_entities afe ON
+                        e.id = afe.entity_id
+                    GROUP BY
+                        mention_idx,
+                        match.score,
+                        match.entity_id,
+                        match.rowid
+                """
+                if i < len(mention_batch) - 1:
+                    query += "\nUNION ALL\n"
+
+            for row in [dict(row) for row in self._db_conn.execute(query).fetchall()]:
+                mention = mention_batch[row["mention_idx"]].text
+                mention_entities_by_mention[mention] = [
+                    *mention_entities_by_mention.get(mention, []),
+                    MentionEntity(
+                        mention=mention, entity_id=row["entity_id"], rowid=row["rowid"]
+                    ),
+                ]
 
         return mention_entities_by_mention
 
