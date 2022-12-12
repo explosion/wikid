@@ -200,12 +200,17 @@ def read_entities(
                             id_to_attrs[unique_id]["aliases"] = []
                             aliases = obj["aliases"]
                             if aliases:
-                                lang_aliases = aliases.get(lang, None)
-                                if lang_aliases:
-                                    for item in lang_aliases:
-                                        id_to_attrs[unique_id]["aliases"].append(
-                                            item["value"]
-                                        )
+                                # Merge aliases in this language with aliases in English. Most aliases are specified in
+                                # English, much less so in any other languages. Often these other languages still refer
+                                # to an entity with an English alias or one that is similar to it, so it makes sense to
+                                # still consider English aliases.
+                                for item in [
+                                    *aliases.get(lang, []),
+                                    *aliases.get("en", []),
+                                ]:
+                                    id_to_attrs[unique_id]["aliases"].append(
+                                        item["value"]
+                                    )
 
             pbar.update(1)
 
