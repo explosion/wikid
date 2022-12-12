@@ -93,6 +93,7 @@ class WikiKB(KnowledgeBase):
         db_path: Path,
         annoy_path: Path,
         language: str,
+        use_coref: bool = False,
         n_trees: int = 25,
         top_k_aliases: int = 5,
         top_k_entities_alias: int = 20,
@@ -108,6 +109,14 @@ class WikiKB(KnowledgeBase):
         db_path (Path): Path to SQLite database.
         annoy_path (Path): Path to Annoy index file.
         language (str): Language.
+        use_coref (bool): Whether to use coref clustering (https://explosion.ai/blog/coref) as a step prior to the
+            actual candidate retrieval. If True, coref clustering is used to identify mentions likely referring to the
+            same entity. For any identified cluster of coreferents, the entity is only retrieved for the first
+            candidate and set for all members of the coreference cluster. As of now, spaCy's neural coref doesn't
+            accept pre-identified entities - if the result of coref's ER and the recognized entities in a document don't
+            match, mentions in the doc take precedence. I.e. they form their own coref cluster with n==1 if not part of
+            any coref cluster. Entities appearing in coref clusters, but not in the doc, are ignored.
+            Experimental and currently only available for English.
         n_trees (int): Number of trees in Annoy index. Precision in NN queries correspond with number of trees. Ignored
             if Annoy index file already exists.
         top_k_aliases (int): Top k aliases matches to consider. An alias may be associated with more than one entity, so
@@ -135,6 +144,7 @@ class WikiKB(KnowledgeBase):
             "mentions_candidates": mentions_candidates_path,
         }
         self._language = language
+        self._use_coref = use_coref
         self._annoy: Optional[annoy.AnnoyIndex] = None
         self._n_trees = n_trees
         self._db_conn: Optional[sqlite3.Connection] = None
@@ -581,6 +591,60 @@ class WikiKB(KnowledgeBase):
         )
         return self._hashes[key]
 
+    def _get_attributes_for_serialization(self) -> Tuple[Any, ...]:
+        """Returns all attributes as Tuple fit for serialization with both to_bytes() and to_disk().
+        RETURNS (Tuple[Any, ...]): Tuple with attributes to serialize.
+        """
+        return (
+            self._language,
+            {key: str(path) if path else None for key, path in self._paths.items()},
+            self.entity_vector_length,
+            self._top_k_aliases,
+            self._top_k_entities_alias,
+            self._top_k_entities_fts,
+            self._threshold_alias,
+            self._n_trees,
+            self._update_hash("db"),
+            self._update_hash("annoy"),
+            self._update_hash("mentions_candidates"),
+            self._use_coref,
+        )
+
+    def _set_attributes_for_serialization(self, values: Tuple[Any, ...]) -> None:
+        """Returns all attributes as Tuple fit for serialization with both to_bytes() and to_disk().
+        value (Tuple[Any, ...]): Tuple with attributes to to set.
+        """
+        self._language = values[0]
+        self._paths = {k: Path(v) if v else None for k, v in values[1].items()}
+        self.entity_vector_length = values[2]
+        self._top_k_aliases = values[3]
+        self._top_k_entities_alias = values[4]
+        self._top_k_entities_fts = values[5]
+        self._threshold_alias = values[6]
+        self._n_trees = values[7]
+        self._hashes["db"] = values[8]
+        self._hashes["annoy"] = values[9]
+        self._hashes["mentions_candidates"] = values[10]
+        self._use_coref = values[11]
+
+    def _synchronize_after_deserialization(self) -> None:
+        """Synchronizes state of KB object after deserialization. This is necessary because paths to external objects
+        may be different after deserialization. Ergo these files need to be reloaded, and the hashes checked for
+        equality (if they are not equal, loaded files are different from the ones the KB was serialized with - this
+        should raise an error, as it indicates, most likely, a mixup).
+        """
+        self._db_conn = establish_db_connection(self._language, self._paths["db"])
+        self._init_annoy_from_file()
+        self._load_mentions_candidates()
+        self._assert_file_hash_consistency()
+
+    def _assert_file_hash_consistency(self) -> None:
+        """Asserts that hashes of loaded files are equal to their respective hashes in this `WikiKB` instance."""
+        for file_id in self._hashes:
+            assert self._hashes[file_id] == self._hash_file(
+                self._paths[file_id]
+            ), f"File with internal ID '{file_id}' does not match deserialized hash."
+
     def to_bytes(self, **kwargs) -> bytes:
         """Serialize the current state to a binary string.
         RETURNS (bytes): Current state as binary string.
@@ -588,22 +652,7 @@ class WikiKB(KnowledgeBase):
         return spacy.util.to_bytes(
             {
                 "meta": lambda: srsly.json_dumps(
-                    data=(
-                        self._language,
-                        {
-                            key: str(path) if path else None
-                            for key, path in self._paths.items()
-                        },
-                        self.entity_vector_length,
-                        self._top_k_aliases,
-                        self._top_k_entities_alias,
-                        self._top_k_entities_fts,
-                        self._threshold_alias,
-                        self._n_trees,
-                        self._update_hash("db"),
-                        self._update_hash("annoy"),
-                        self._update_hash("mentions_candidates"),
-                    )
+                    data=self._get_attributes_for_serialization()
                 ).encode("utf-8"),
                 "vocab": self.vocab.to_bytes,
             },
@@ -622,27 +671,8 @@ class WikiKB(KnowledgeBase):
             """De-serialize meta info.
             value (bytes): Byte string to deserialize.
             """
-            meta_info = srsly.json_loads(value)
-            self._language = meta_info[0]
-            self._paths = {k: Path(v) if v else None for k, v in meta_info[1].items()}
-            self.entity_vector_length = meta_info[2]
-            self._top_k_aliases = meta_info[3]
-            self._top_k_entities_alias = meta_info[4]
-            self._top_k_entities_fts = meta_info[5]
-            self._threshold_alias = meta_info[6]
-            self._n_trees = meta_info[7]
-            self._hashes["db"] = meta_info[8]
-            self._hashes["annoy"] = meta_info[9]
-            self._hashes["mentions_candidates"] = meta_info[10]
-
-            self._db_conn = establish_db_connection(self._language, self._paths["db"])
-            self._init_annoy_from_file()
-            self._load_mentions_candidates()
-
-            for file_id in self._hashes:
-                assert self._hashes[file_id] == self._hash_file(
-                    self._paths[file_id]
-                ), f"File with internal ID '{file_id}' does not match deserialized hash."
+            self._set_attributes_for_serialization(srsly.json_loads(value))
+            self._synchronize_after_deserialization()
 
         spacy.util.from_bytes(
             bytes_data,
@@ -679,20 +709,7 @@ class WikiKB(KnowledgeBase):
             self._update_hash(file_id)
 
         serialize = {
-            "meta": lambda p: pickle_data(
-                (
-                    self._language,
-                    self._paths,
-                    self.entity_vector_length,
-                    self._top_k_aliases,
-                    self._top_k_entities_alias,
-                    self._top_k_entities_fts,
-                    self._threshold_alias,
-                    self._n_trees,
-                    self._hashes,
-                ),
-                p,
-            ),
+            "meta": lambda p: pickle_data(self._get_attributes_for_serialization(), p),
             "vocab.json": lambda p: self.vocab.strings.to_disk(p),
         }
         spacy.util.to_disk(path, serialize, exclude)
@@ -718,27 +735,8 @@ class WikiKB(KnowledgeBase):
             RETURNS (Any): Deserializes meta info.
             """
             with open(file_path, "rb") as file:
-                meta_info = pickle.load(file)
-                self._language = meta_info[0]
-                self._paths = meta_info[1]
-                self.entity_vector_length = meta_info[2]
-                self._top_k_aliases = meta_info[3]
-                self._top_k_entities_alias = meta_info[4]
-                self._top_k_entities_fts = meta_info[5]
-                self._threshold_alias = meta_info[6]
-                self._n_trees = meta_info[7]
-                self._hashes = meta_info[8]
-
-                self._db_conn = establish_db_connection(
-                    self._language, self._paths["db"]
-                )
-                self._init_annoy_from_file()
-                self._load_mentions_candidates()
-
-                for file_id in self._hashes:
-                    assert self._hashes[file_id] == self._hash_file(
-                        self._paths[file_id]
-                    ), f"File with internal ID '{file_id}' does not match deserialized hash."
+                self._set_attributes_for_serialization(pickle.load(file))
+            self._synchronize_after_deserialization()
 
         deserialize = {
             "meta": lambda p: deserialize_meta_info(p),
@@ -774,19 +772,26 @@ class WikiKB(KnowledgeBase):
             file_path (Path): File path.
             """
             with open(file_path, "rb") as file:
-                meta_info = pickle.load(file)
-                args["language"] = meta_info[0]
-                args["db_path"] = meta_info[1]["db"]
-                args["annoy_path"] = meta_info[1]["annoy"]
-                args["mentions_candidates_path"] = meta_info[1]["mentions_candidates"]
-                args["entity_vector_length"] = meta_info[2]
-                args["top_k_aliases"] = meta_info[3]
-                args["top_k_entities_alias"] = meta_info[4]
-                args["top_k_entities_fts"] = meta_info[5]
-                args["threshold_alias"] = meta_info[6]
-                args["n_trees"] = meta_info[7]
-                for _file_id, _file_hash in meta_info[8].items():
-                    hashes[_file_id] = _file_hash
+                values = pickle.load(file)
+            args["language"] = values[0]
+            args["db_path"] = Path(values[1]["db"])
+            args["annoy_path"] = Path(values[1]["annoy"])
+            args["mentions_candidates_path"] = (
+                Path(values[1]["mentions_candidates"])
+                if values[1]["mentions_candidates"]
+                else None
+            )
+            args["entity_vector_length"] = values[2]
+            args["top_k_aliases"] = values[3]
+            args["top_k_entities_alias"] = values[4]
+            args["top_k_entities_fts"] = values[5]
+            args["threshold_alias"] = values[6]
+            args["n_trees"] = values[7]
+            for _file_id, _file_hash in zip(
+                ("db", "annoy", "mentions_candidates"), (values[i] for i in (8, 9, 10))
+            ):
+                hashes[_file_id] = _file_hash
+            args["use_coref"] = values[11]
 
         spacy.util.from_disk(
             path,
@@ -800,11 +805,7 @@ class WikiKB(KnowledgeBase):
         # Initialize instance, set hashes manually since they aren't specified on initialization.
         kb = cls(**{**args, **kwargs})
         kb._hashes = hashes
-        # Check for hash equality (mismatch indicates there might be an issue with DB/Annoy file paths or files).
-        for file_id in kb._hashes:
-            assert kb._hashes[file_id] == kb._hash_file(
-                kb._paths[file_id]
-            ), f"File with internal ID '{file_id}' does not match deserialized hash."
+        kb._assert_file_hash_consistency()
 
         return kb
 

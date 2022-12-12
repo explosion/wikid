@@ -267,6 +267,7 @@ def _verify_kb_equality(kb1: WikiKB, kb2: WikiKB) -> bool:
                 "_top_k_entities_alias",
                 "_top_k_entities_fts",
                 "_threshold_alias",
+                "_use_coref",
             )
         ]
     )
