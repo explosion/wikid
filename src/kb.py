@@ -361,11 +361,16 @@ class WikiKB(KnowledgeBase):
 
     @staticmethod
     def _query_aliases_for_mentions(
-        db_path: Path, mentions: Iterable[str]
+        db_path: Path,
+        top_k_aliases: int,
+        top_k_entities_alias: int,
+        mentions: Iterable[str],
     ) -> List[MentionEntity]:
         """
         Query aliases in DB for specified mentions.
         db_path (Path): Path to DB.
+        top_k_aliases (int): Number of aliases to consider (sorted from best to worst match).
+        top_k_entities_alias (int): Number of entities to consider (sorted from best to worst match).
         mentions (Iterable[str]): mentions to look up.
         RETURNS (List[MentionEntity]): List of MentionEntity instances for mention-alias pairs.
         """
@@ -394,11 +399,11 @@ class WikiKB(KnowledgeBase):
                             aliases
                         WHERE
                             word MATCH ?
-                            AND top = 5
+                            AND top = {top_k_aliases}
                     )
                     ORDER BY
                         distance
-                    LIMIT 5
+                    LIMIT {top_k_aliases}
                 )
                 """
             ]
@@ -408,31 +413,25 @@ class WikiKB(KnowledgeBase):
         query = f"""
         SELECT
             matches.mention,
-            matches.entity_id,
-            matches.max_prior_prob,
-            matches.sum_occurence_count,
-            matches.min_distance,
+            ae.entity_id,
+            max(ae.prior_prob) as max_prior_prob,
+            sum(ae.count) as sum_occurence_count,
+            min(matches.distance) as min_distance,
             e.ROWID
-        FROM (
-            SELECT
-                matches.mention,
-                ae.entity_id,
-                max(ae.prior_prob) as max_prior_prob,
-                sum(ae.count) as sum_occurence_count,
-                min(matches.distance) as min_distance
-            FROM
-                ({alias_subquery}) matches
-            INNER JOIN aliases_for_entities ae on
-                ae.alias = matches.alias
-            GROUP BY
-                matches.mention,
-                ae.entity_id
-            ORDER BY
-                min_distance,
-                sum_occurence_count DESC
-        ) matches
+        FROM
+            ({alias_subquery}) matches
+        INNER JOIN aliases_for_entities ae on
+            ae.alias = matches.alias
         INNER JOIN entities e ON
-            e.id = matches.entity_id
+            e.id = ae.entity_id AND
+            e.is_meta = FALSE
+        GROUP BY
+            matches.mention,
+            ae.entity_id
+        ORDER BY
+            min_distance,
+            sum_occurence_count DESC
+        LIMIT {top_k_entities_alias}
         """
 
         return [
@@ -477,7 +476,10 @@ class WikiKB(KnowledgeBase):
                 tqdm.tqdm(
                     p.imap(
                         functools.partial(
-                            self._query_aliases_for_mentions, self._paths["db"]
+                            self._query_aliases_for_mentions,
+                            self._paths["db"],
+                            self._top_k_aliases,
+                            self._top_k_entities_alias,
                         ),
                         numpy.array_split(
                             [mention.text for mention in mentions], n_batches
@@ -520,30 +522,28 @@ class WikiKB(KnowledgeBase):
                         {i} as mention_idx,
                         match.score,
                         match.entity_id,
-                        match.rowid,
                         sum(afe.count) as sum_occurence_count
                     FROM (
                         SELECT
                             bm25(entities_texts) as score,
-                            et.entity_id,
-                            et.ROWID as rowid
+                            et.entity_id
                         FROM
                             entities_texts et
+                        INNER JOIN entities e ON
+                            e.ROWID = et.ROWID AND
+                            e.is_meta = FALSE
                         WHERE
                             entities_texts MATCH '"{mention.text.replace("'", " ").replace('"', ' ')}"'
                         ORDER BY
                             bm25(entities_texts)
                         LIMIT {self._top_k_entities_fts}
                     ) match
-                    INNER JOIN entities e ON
-                        e.ROWID = match.ROWID
                     INNER JOIN aliases_for_entities afe ON
-                        e.id = afe.entity_id
+                        match.entity_id = afe.entity_id
                     GROUP BY
                         mention_idx,
                         match.score,
-                        match.entity_id,
-                        match.rowid
+                        match.entity_id
                 """
                 if i < len(mention_batch) - 1:
                     query += "\nUNION ALL\n"

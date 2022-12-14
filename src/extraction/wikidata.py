@@ -240,14 +240,28 @@ def _write_to_db(
     title_to_id (Dict[str, str]): Titles to QIDs.
     id_to_attrs (Dict[str, Dict[str, Any]]): For QID a dictionary with property name to property value(s).
     """
-
-    entities: List[Tuple[Optional[str], ...]] = []
+    entities: List[Tuple[str, int]] = []
     entities_texts: List[Tuple[Optional[str], ...]] = []
     aliases_for_entities: List[Tuple[str, str, int]] = []
+    # Text snippets indicating entity is a meta entity, i.e. a category or disambiguation page.
+    meta_indicators = ("Wikimedia category", "Wikimedia disambiguation page")
 
     for title, qid in title_to_id.items():
         label = id_to_attrs[qid].get("labels", {}).get("value", None)
-        entities.append((qid,))
+        entities.append(
+            # Convert meta indicator into int to fit SQLite data type.
+            (
+                qid,
+                int(
+                    any(
+                        [
+                            mi in id_to_attrs[qid].get("description", "")
+                            for mi in meta_indicators
+                        ]
+                    )
+                ),
+            )
+        )
         entities_texts.append(
             (
                 qid,
@@ -262,7 +276,7 @@ def _write_to_db(
 
     cur = db_conn.cursor()
     cur.executemany(
-        "INSERT INTO entities (id) VALUES (?)",
+        "INSERT INTO entities (id, is_meta) VALUES (?, ?)",
         entities,
     )
     cur.executemany(
