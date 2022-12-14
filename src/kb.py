@@ -522,11 +522,13 @@ class WikiKB(KnowledgeBase):
                         {i} as mention_idx,
                         match.score,
                         match.entity_id,
+                        match.rowid,
                         sum(afe.count) as sum_occurence_count
                     FROM (
                         SELECT
                             bm25(entities_texts) as score,
-                            et.entity_id
+                            et.entity_id,
+                            e.ROWID as rowid
                         FROM
                             entities_texts et
                         INNER JOIN entities e ON
