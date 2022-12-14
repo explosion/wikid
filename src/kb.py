@@ -412,26 +412,43 @@ class WikiKB(KnowledgeBase):
 
         query = f"""
         SELECT
-            matches.mention,
-            ae.entity_id,
-            max(ae.prior_prob) as max_prior_prob,
-            sum(ae.count) as sum_occurence_count,
-            min(matches.distance) as min_distance,
-            e.ROWID
-        FROM
-            ({alias_subquery}) matches
-        INNER JOIN aliases_for_entities ae on
-            ae.alias = matches.alias
-        INNER JOIN entities e ON
-            e.id = ae.entity_id AND
-            e.is_meta = FALSE
-        GROUP BY
-            matches.mention,
-            ae.entity_id
-        ORDER BY
-            min_distance,
-            sum_occurence_count DESC
-        LIMIT {top_k_entities_alias}
+            *
+        FROM (
+            SELECT
+                matches.*,
+                RANK () OVER (
+                    PARTITION BY
+                        matches.mention
+                    ORDER BY
+                        matches.min_distance,
+                        matches.sum_occurence_count DESC,
+                        matches.entity_id
+                ) rank
+            FROM (
+                SELECT
+                    matches.mention,
+                    ae.entity_id,
+                    max(ae.prior_prob) as max_prior_prob,
+                    sum(ae.count) as sum_occurence_count,
+                    min(matches.distance) as min_distance,
+                    e.ROWID as rowid
+                FROM
+                    ({alias_subquery}) matches
+                INNER JOIN aliases_for_entities ae on
+                    ae.alias = matches.alias
+                INNER JOIN entities e ON
+                    e.id = ae.entity_id AND
+                    e.is_meta = FALSE
+                GROUP BY
+                    matches.mention,
+                    ae.entity_id
+                ORDER BY
+                    min_distance,
+                    sum_occurence_count DESC
+            ) matches
+        ) matches_with_rank
+        WHERE
+            matches_with_rank.rank <= {top_k_entities_alias}
         """
 
         return [
