@@ -15,7 +15,7 @@ articles:
     - "{{desambiguación}}"
 
 # Matched against entity description.
-entites:
+entities:
   en:
     - "Wikimedia category"
     - "Wikimedia disambiguation page"

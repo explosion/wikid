@@ -250,7 +250,7 @@ def _write_to_db(
     with open(
         Path(__file__).parent.parent.parent / "configs" / "meta_terms.yaml", "r"
     ) as stream:
-        meta_indicators = set(yaml.safe_load(stream)["articles"][lang])
+        meta_indicators = set(yaml.safe_load(stream)["entities"][lang])
 
     for title, qid in title_to_id.items():
         label = id_to_attrs[qid].get("labels", {}).get("value", None)
