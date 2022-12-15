@@ -301,9 +301,9 @@ def read_texts(
             # Note: checks for redirection/disambiguation articles are not language-agnostic. Porting this to the
             # generalized extraction needs to consider that.
             with open(
-                Path(__file__).parent.parent.parent / "configs" / "skip_terms.yaml", "r"
+                Path(__file__).parent.parent.parent / "configs" / "meta_terms.yaml", "r"
             ) as stream:
-                skip_terms = set(yaml.safe_load(stream)[lang])
+                skip_terms = set(yaml.safe_load(stream)["articles"][lang])
             skip_article = False
 
             for line in io.BufferedReader(file, buffer_size=1024 * 1024 * 16):

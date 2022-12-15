@@ -1,0 +1,24 @@
+# Some entities/articles are meta information (redirections, categorizations, disambiguations, ...). These are not
+# useful for our candidate retrieval and only slow things down.
+# Hence we compare entities/articles with a list of terms, as unfortunately there doesn't seem to be a language-agnostic
+# mark-up code indicating meta status (or is there?), so we gather them per language.
+
+# Matched against article text.
+articles:
+  en:
+    - "#redirection"
+    - "#redirect"
+    - "{{disambiguation}}"
+  es:
+    - "#redirect"
+    - "#redirección"
+    - "{{desambiguación}}"
+
+# Matched against entity description.
+entites:
+  en:
+    - "Wikimedia category"
+    - "Wikimedia disambiguation page"
+  es:
+    - "categoría de Wikimedia"
+    - "página de desambiguación de Wikimedia"
