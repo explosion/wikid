@@ -72,7 +72,7 @@ def main(vectors_model: str, language: str):
     # Add pseudo aliases for easier lookup with new candidate generators.
     for entity_id in entity_list:
         kb.add_alias(
-            alias="_" + entity_id + "_", entities=[entity_id], probabilities=[1]
+            alias="_" + entity_id + " _ ", entities=[entity_id], probabilities=[1]
         )
 
     # Serialize knowledge base & pipeline.
