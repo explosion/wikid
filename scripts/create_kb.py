@@ -46,7 +46,7 @@ def main(vectors_model: str, language: str):
                 n_process=-1,
             ),
             total=len(entities),
-            desc="Inferring entity embeddings",
+            desc="Inferring entity embeddings ",
         )
     ]
     for qid, desc_vector in zip(entities.keys(), desc_vectors):
