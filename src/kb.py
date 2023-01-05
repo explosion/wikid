@@ -30,7 +30,7 @@ import wasabi
 from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase
 from spacy.kb.candidate import BaseCandidate
-from spacy.tokens import Span
+from spacy.tokens import Span, SpanGroup
 from spacy.util import SimpleFrozenList
 
 
@@ -251,12 +251,12 @@ class WikiKB(KnowledgeBase):
         self._annoy.build(n_trees=self._n_trees, n_jobs=n_jobs)
 
     def get_candidates_all(
-        self, mentions: Iterator[Iterable[Span]]
+        self, mentions: Iterator[SpanGroup]
     ) -> Iterator[_DocCandidates]:
         """
         Retrieve candidate entities for specified mentions per document. If no candidate is found for a given mention,
         an empty list is returned. Uses mention-candidate lookup, if available.
-        mentions (Iterator[Iterable[Span]]): Mentions per documents for which to get candidates.
+        mentions (Iterator[SpanGroup]): Mentions per documents for which to get candidates.
         YIELDS (Iterator[_DocCandidates]): Identified candidates per document.
         """
         for mentions_in_doc in mentions:
