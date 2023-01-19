@@ -275,6 +275,7 @@ class WikiKB(KnowledgeBase):
                 candidates_per_mention: List[List[WikiKBCandidate]] = []
 
                 for i, mention in enumerate(mentions_in_doc):
+                    # Transform found mentions into WikiKBCandidate instances.
                     candidates_per_mention.append([])
                     appended_entity_ids: Set[str] = set()
 
