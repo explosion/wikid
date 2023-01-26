@@ -31,8 +31,7 @@ from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase
 from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span, SpanGroup
-from spacy.util import SimpleFrozenList
-
+from spacy.util import SimpleFrozenList, SimpleFrozenDict
 
 # This is quite annoying. Context: the custom code file that may be included in training (e.g. in the NEL benchmark) is
 # missing the correct PYTHONPATH. This can lead to import errors, and so far this is the only way I've found to reliably
@@ -771,6 +770,7 @@ class WikiKB(KnowledgeBase):
         cls,
         path: Union[str, Path],
         exclude: Iterable[str] = SimpleFrozenList(),
+        artifact_paths: Dict[str, Path] = SimpleFrozenDict(),
         **kwargs,
     ) -> "WikiKB":
         """
@@ -778,6 +778,8 @@ class WikiKB(KnowledgeBase):
         read from disk.
         path (Union[str, Path]): Target file path.
         exclude (Iterable[str]): List of components to exclude.
+        artifact_paths (Dict[str, Path]): Dictionary with paths to external artifacts (such as database or index files).
+        Keys not in self._paths are ignored.
         return (WikiKB): Generated WikiKB instance.
         """
         path = spacy.util.ensure_path(path)
@@ -796,8 +798,8 @@ class WikiKB(KnowledgeBase):
             with open(file_path, "rb") as file:
                 meta_info = pickle.load(file)
                 args["language"] = meta_info[0]
-                args["db_path"] = meta_info[1]["db"]
-                args["annoy_path"] = meta_info[1]["annoy"]
+                args["db_path"] = artifact_paths.get("db", meta_info[1]["db"])
+                args["annoy_path"] = artifact_paths.get("annoy", meta_info[1]["annoy"])
                 args["mentions_candidates_path"] = meta_info[1]["mentions_candidates"]
                 args["entity_vector_length"] = meta_info[2]
                 args["top_k_aliases"] = meta_info[3]
