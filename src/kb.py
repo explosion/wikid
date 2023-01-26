@@ -779,7 +779,7 @@ class WikiKB(KnowledgeBase):
         path (Union[str, Path]): Target file path.
         exclude (Iterable[str]): List of components to exclude.
         artifact_paths (Dict[str, Path]): Dictionary with paths to external artifacts (such as database or index files).
-        Keys not in self._paths are ignored.
+            Keys not in self._paths are ignored.
         return (WikiKB): Generated WikiKB instance.
         """
         path = spacy.util.ensure_path(path)
