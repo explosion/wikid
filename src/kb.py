@@ -792,11 +792,6 @@ class WikiKB(KnowledgeBase):
         args: Dict[str, Any] = {"vocab": Vocab(strings=["."])}
         hashes: Dict[str, str] = {}
 
-        # Ensure specified paths are absolute.
-        artifact_paths = {
-            key: path.absolute() if path else path for key, path in artifact_paths
-        }
-
         def deserialize_meta_info(file_path: Path) -> None:
             """
             Deserializes meta info.
