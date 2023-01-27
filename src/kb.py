@@ -129,9 +129,11 @@ class WikiKB(KnowledgeBase):
         super().__init__(vocab, entity_vector_length)
 
         self._paths = {
-            "db": db_path,
-            "annoy": annoy_path,
-            "mentions_candidates": mentions_candidates_path,
+            "db": db_path.absolute(),
+            "annoy": annoy_path.absolute(),
+            "mentions_candidates": mentions_candidates_path.absolute()
+            if mentions_candidates_path
+            else None,
         }
         self._language = language
         self._annoy: Optional[annoy.AnnoyIndex] = None
@@ -790,12 +792,16 @@ class WikiKB(KnowledgeBase):
         args: Dict[str, Any] = {"vocab": Vocab(strings=["."])}
         hashes: Dict[str, str] = {}
 
+        # Ensure specified paths are absolute.
+        artifact_paths = {
+            key: path.absolute() if path else path for key, path in artifact_paths
+        }
+
         def deserialize_meta_info(file_path: Path) -> None:
             """
             Deserializes meta info.
             file_path (Path): File path.
             """
-            print(artifact_paths)
             with open(file_path, "rb") as file:
                 meta_info = pickle.load(file)
                 args["language"] = meta_info[0]
