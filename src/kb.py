@@ -795,12 +795,15 @@ class WikiKB(KnowledgeBase):
             Deserializes meta info.
             file_path (Path): File path.
             """
+            print(artifact_paths)
             with open(file_path, "rb") as file:
                 meta_info = pickle.load(file)
                 args["language"] = meta_info[0]
                 args["db_path"] = artifact_paths.get("db", meta_info[1]["db"])
                 args["annoy_path"] = artifact_paths.get("annoy", meta_info[1]["annoy"])
-                args["mentions_candidates_path"] = meta_info[1]["mentions_candidates"]
+                args["mentions_candidates_path"] = artifact_paths.get(
+                    "mentions_candidates", meta_info[1]["mentions_candidates"]
+                )
                 args["entity_vector_length"] = meta_info[2]
                 args["top_k_aliases"] = meta_info[3]
                 args["top_k_entities_alias"] = meta_info[4]
