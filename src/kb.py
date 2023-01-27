@@ -581,6 +581,7 @@ class WikiKB(KnowledgeBase):
     def _init_annoy_from_file(self) -> None:
         """Inits Annoy index."""
         self._annoy = annoy.AnnoyIndex(self.entity_vector_length, "angular")
+        print("***", self._paths)
         self._annoy.load(str(self._paths["annoy"]))
 
     def _load_mentions_candidates(self) -> None:
