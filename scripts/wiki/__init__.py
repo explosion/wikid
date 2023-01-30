@@ -3,7 +3,11 @@ import os.path
 import pickle
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set, Optional
-import sqlite3
+
+try:
+    import pysqlite3 as sqlite3
+except ModuleNotFoundError:
+    import sqlite3
 
 from . import schemas
 from . import wikidata
