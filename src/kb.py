@@ -773,6 +773,7 @@ class WikiKB(KnowledgeBase):
         path: Union[str, Path],
         exclude: Iterable[str] = SimpleFrozenList(),
         artifact_paths: Dict[str, Optional[Path]] = SimpleFrozenDict(),
+        check_hashes_of_overridden_artifacts: bool = True,
         **kwargs,
     ) -> "WikiKB":
         """
@@ -782,6 +783,10 @@ class WikiKB(KnowledgeBase):
         exclude (Iterable[str]): List of components to exclude.
         artifact_paths (Dict[str, Optional[Path]]): Dictionary with paths to external artifacts (such as database or
             index files). Keys not in self._paths are ignored.
+        check_hashes_of_overridden_artifacts (bool): Whether to check equality of stored file hashes to the hashes of
+            files specified in artifact_paths. It can be useful to disable this for certain workflows - in general this
+            should only be set to False if strictly necessary, as it disables a consistency precaution.
+            Ideally we support handling of these workflows in a more consistent way and drop this argument.
         return (WikiKB): Generated WikiKB instance.
         """
         path = spacy.util.ensure_path(path)
@@ -828,6 +833,9 @@ class WikiKB(KnowledgeBase):
         kb._hashes = hashes
         # Check for hash equality (mismatch indicates there might be an issue with DB/Annoy file paths or files).
         for file_id in kb._hashes:
+            # Skip hash equality check if file path has been over
+            if file_id in artifact_paths and not check_hashes_of_overridden_artifacts:
+                continue
             assert kb._hashes[file_id] == kb._hash_file(
                 kb._paths[file_id]
             ), f"File with internal ID '{file_id}' does not match deserialized hash."
