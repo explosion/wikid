@@ -867,10 +867,10 @@ class WikiKB(KnowledgeBase):
                 buf = f.read(blocksize)
         return file_hash.hexdigest()
 
-    def update_path(self, file_id: str, path: Path) -> None:
+    def update_path(self, file_id: str, path: Optional[Path]) -> None:
         """Update path. Includes update of file hash.
         file_id (str): File ID.
-        path (Path): Path to file.
+        path (Optional[Path]): Path to file.
         """
         self._paths[file_id] = path
         self._update_hash(file_id)
