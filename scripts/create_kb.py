@@ -8,7 +8,11 @@ import numpy
 import spacy
 import tqdm
 import typer
-from spacy.kb import KnowledgeBase
+
+try:
+    from spacy.kb import InMemoryLookupKB as DefaultKB
+except ModuleNotFoundError:
+    from spacy.kb import KnowledgeBase as DefaultKB
 import wiki
 
 
@@ -22,7 +26,7 @@ def main(vectors_model: str, language: str):
     nlp = spacy.load(vectors_model, exclude=["tagger", "lemmatizer", "attribute_ruler"])
 
     logger.info("Constructing knowledge base.")
-    kb = KnowledgeBase(vocab=nlp.vocab, entity_vector_length=nlp.vocab.vectors_length)
+    kb = DefaultKB(vocab=nlp.vocab, entity_vector_length=nlp.vocab.vectors_length)
     entity_list: List[str] = []
     count_list: List[int] = []
     vector_list: List[numpy.ndarray] = []  # type: ignore
