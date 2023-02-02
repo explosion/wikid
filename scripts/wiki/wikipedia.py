@@ -5,17 +5,13 @@ Modified from https://github.com/explosion/projects/blob/master/nel-wikipedia/wi
 import re
 import bz2
 
-try:
-    import pysqlite3 as sqlite3
-except ModuleNotFoundError:
-    import sqlite3
-
 from pathlib import Path
 from typing import Union, Optional, Tuple, List, Dict, Set, Any
 
 import tqdm
 import yaml
 
+from .compat import sqlite3
 from .namespaces import (
     WP_META_NAMESPACE,
     WP_FILE_NAMESPACE,

@@ -6,15 +6,12 @@ import bz2
 import io
 import json
 
-try:
-    import pysqlite3 as sqlite3
-except ModuleNotFoundError:
-    import sqlite3
 from pathlib import Path
 from typing import Union, Optional, Dict, Tuple, Any, List, Set, Iterator
 
 import tqdm
 
+from .compat import sqlite3
 from .namespaces import WD_META_ITEMS
 
 
