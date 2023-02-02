@@ -598,12 +598,11 @@ class WikiKB(KnowledgeBase):
 
     def _load_mentions_candidates(self) -> None:
         if self._paths["mentions_candidates"] is not None:
-            self._mentions_candidates = {
-                mention_text: [WikiKBCandidate(**cand) for cand in candidates]
-                for mention_text, candidates in dict(
-                    srsly.read_json(self._paths["mentions_candidates"])
-                ).items()
-            }
+            with open(self._paths["mentions_candidates"], "rb") as file:
+                self._mentions_candidates = {
+                    mention_text: [WikiKBCandidate(**cand) for cand in candidates]
+                    for mention_text, candidates in dict(pickle.load(file)).items()
+                }
         else:
             self._mentions_candidates = None
 

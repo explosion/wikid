@@ -1,11 +1,11 @@
 import os
+import pickle
 import tempfile
 from pathlib import Path
 from typing import List
 
 import pytest
 import spacy
-import srsly
 from spacy.tokens import Span
 
 from src.kb import WikiKB
@@ -151,15 +151,16 @@ def _kb_with_lookup_file(_kb, _db_path) -> WikiKB:
     doc = nlp("new yorc and Boston")
     mentions = [doc[:2], doc[3:]]
     cands = list(next(_kb.get_candidates_all([mentions])))
-    lookup_path = _db_path.parent / "mention_lookups.json"
+    lookup_path = _db_path.parent / "mention_lookups.pkl"
 
-    srsly.write_json(
-        lookup_path,
-        {
-            mention.text: [cand.asdict() for cand in cands[i]]
-            for i, mention in enumerate(mentions)
-        },
-    )
+    with open(lookup_path, "wb") as file:
+        pickle.dump(
+            {
+                mention.text: [cand.asdict() for cand in cands[i]]
+                for i, mention in enumerate(mentions)
+            },
+            file,
+        )
 
     kb = WikiKB(
         _kb.vocab,
