@@ -75,6 +75,17 @@ class WikiKBCandidate(BaseCandidate):
         """RETURNS (str): Entity name."""
         return self._entity_id
 
+    def asdict(self) -> Dict[str, Union[str, int, float]]:
+        """Returns dictionary representation.
+        RETURNS (Dict[str, Union[str, int, float]]): Dictionary representation of this instance.
+        """
+        return {
+            "mention": self._mention,
+            "entity_id": self._entity_id,
+            "entity_vector": self._entity_vector,
+            "prior_prob": self._prior_prob,
+        }
+
 
 # Iterable of entity candidates for a single mention.
 _MentionCandidates = Iterable[WikiKBCandidate]
@@ -587,8 +598,12 @@ class WikiKB(KnowledgeBase):
 
     def _load_mentions_candidates(self) -> None:
         if self._paths["mentions_candidates"] is not None:
-            with open(self._paths["mentions_candidates"], "rb") as file:
-                self._mentions_candidates = pickle.load(file)
+            self._mentions_candidates = {
+                mention_text: [WikiKBCandidate(**cand) for cand in candidates]
+                for mention_text, candidates in dict(
+                    srsly.read_json(self._paths["mentions_candidates"])
+                ).items()
+            }
         else:
             self._mentions_candidates = None
 
