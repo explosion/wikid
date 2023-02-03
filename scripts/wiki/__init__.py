@@ -3,8 +3,8 @@ import os.path
 import pickle
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set, Optional
-import sqlite3
 
+from .compat import sqlite3
 from . import schemas
 from . import wikidata
 from . import wikipedia
