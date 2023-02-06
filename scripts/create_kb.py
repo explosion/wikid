@@ -11,7 +11,7 @@ import typer
 
 try:
     from spacy.kb import InMemoryLookupKB as DefaultKB
-except ModuleNotFoundError:
+except ImportError:
     from spacy.kb import KnowledgeBase as DefaultKB
 import wiki
 
