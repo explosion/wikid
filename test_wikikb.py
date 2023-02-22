@@ -323,3 +323,10 @@ def test_serialized_mention_lookups(_kb_with_lookup_file) -> None:
     _verify_candidate_retrieval_results(
         _kb_with_lookup_file, [doc[:2], doc[3:]], [["Q60"], ["Q100", "Q60"]]
     )
+
+
+def test_embedding_lookup(_kb) -> None:
+    """Test that unknown entities are represented as 0-vectors."""
+    zero_vector = [0] * _kb.entity_vector_length
+    assert all([_kb.get_vector(qid) != zero_vector for qid in ("Q60", "Q100", "Q597")])
+    assert _kb.get_vector("Q99999999") == zero_vector

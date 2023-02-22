@@ -343,26 +343,50 @@ class WikiKB(KnowledgeBase):
 
     def get_vectors(self, qids: Iterable[str]) -> Iterable[Iterable[float]]:
         """
-        Return vectors for entities.
+        Return vectors for entities. Entities not found in KB will be represented by 0-vectors.
         qids (str): Wiki QIDs.
         RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
         """
         if not isinstance(qids, Sized):
-            qids = set(qids)
+            qids = list(qids)
+
+        # Determine which entities are in KB.
+        available_qids = [
+            row["id"]
+            for row in self._db_conn.cursor()
+            .execute(
+                "SELECT id FROM entities WHERE id in (%s)" % ",".join("?" * len(qids)),
+                tuple(qids),
+            )
+            .fetchall()
+        ]
+        # Check that order of IDs in available_qids hasn't been scrambled.
+        idx = [qids.index(v) for v in available_qids]
+        assert all(x < y for x, y in zip(idx, idx[1:]))
 
         # Fetch row IDs for QIDs, resolve to vectors in Annoy index.
-        return self._get_vectors(
-            [
-                row["ROWID"]
-                for row in self._db_conn.cursor()
-                .execute(
-                    "SELECT ROWID FROM entities WHERE id in (%s)"
-                    % ",".join("?" * len(qids)),
-                    tuple(qids),
-                )
-                .fetchall()
-            ]
+        available_embeddings = list(
+            self._get_vectors(
+                [
+                    row["ROWID"]
+                    for row in self._db_conn.cursor()
+                    .execute(
+                        "SELECT ROWID FROM entities WHERE id in (%s)"
+                        % ",".join("?" * len(available_qids)),
+                        tuple(available_qids),
+                    )
+                    .fetchall()
+                ]
+            )
         )
+
+        # Return stored embeddings for available entities - and 0-vectors for others.
+        return [
+            available_embeddings[available_qids.index(qid)]
+            if qid in available_qids
+            else [0] * self.entity_vector_length
+            for qid in qids
+        ]
 
     def get_vector(self, qid: str) -> Iterable[float]:
         """
