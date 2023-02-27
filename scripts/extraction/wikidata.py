@@ -6,12 +6,12 @@ import bz2
 import io
 import json
 import multiprocessing
-import sqlite3
 from pathlib import Path
 from typing import Union, Optional, Dict, Tuple, Any, List, Set
 
 import tqdm
 
+from .compat import sqlite3
 from .utils import get_logger
 from .namespaces import WD_META_ITEMS
 

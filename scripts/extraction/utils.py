@@ -2,12 +2,13 @@ import logging
 import os.path
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Optional
-import sqlite3
 
 import sqlite_spellfix
 import tqdm
 import wasabi
 
+
+from .compat import sqlite3
 from . import schemas
 from . import wikidata
 from . import wikipedia
