@@ -1,16 +1,41 @@
-""" Wiki dataset for unified access to information from Wikipedia and Wikidata dumps. """
+import logging
 import os.path
 import pickle
 from pathlib import Path
-from typing import Dict, Any, Tuple, List, Set, Optional
+from typing import Dict, Any, Tuple, List, Optional, Set
+import sqlite3
 
-from .compat import sqlite3
 from . import schemas
 from . import wikidata
 from . import wikipedia
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
 
-def _get_paths(language: str) -> Dict[str, Path]:
+
+def get_logger(handle: str) -> logging.Logger:
+    """Get logger for handle.
+    handle (str): Logger handle.
+    RETURNS (logging.Logger): Logger.
+    """
+
+    return logging.getLogger(handle)
+
+
+def read_filter_terms() -> Set[str]:
+    """Read terms used to filter Wiki dumps/corpora.
+    RETURNS (Set[str]): Set of filter terms.
+    """
+    with open(
+        Path(__file__).parent.parent / "configs" / "filter_terms.txt", "r"
+    ) as file:
+        return {ft.replace("\n", "") for ft in file.readlines()}
+
+
+def get_paths(language: str) -> Dict[str, Path]:
     """Get paths.
     language (str): Language.
     RETURNS (Dict[str, Path]): Paths.
@@ -33,9 +58,9 @@ def establish_db_connection(language: str) -> sqlite3.Connection:
     language (str): Language.
     RETURNS (sqlite3.Connection): Database connection.
     """
-    db_path = _get_paths(language)["db"]
+    db_path = get_paths(language)["db"]
     os.makedirs(db_path.parent, exist_ok=True)
-    db_conn = sqlite3.connect(_get_paths(language)["db"])
+    db_conn = sqlite3.connect(get_paths(language)["db"])
     db_conn.row_factory = sqlite3.Row
     return db_conn
 
@@ -48,7 +73,7 @@ def extract_demo_dump(filter_terms: Set[str], language: str) -> None:
     language (str): Language.
     """
 
-    _paths = _get_paths(language)
+    _paths = get_paths(language)
     entity_ids, entity_labels = wikidata.extract_demo_dump(
         _paths["wikidata_dump"], _paths["filtered_wikidata_dump"], filter_terms
     )
@@ -79,7 +104,7 @@ def parse(
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
     """
 
-    _paths = _get_paths(language)
+    _paths = get_paths(language)
     msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
     assert not os.path.exists(_paths["db"]), msg
 
