@@ -1,8 +1,12 @@
-""" Wiki dataset for unified access to information from Wikipedia and Wikidata dumps. """
+import logging
 import os.path
-import pickle
 from pathlib import Path
-from typing import Dict, Any, Tuple, List, Set, Optional
+from typing import Dict, Any, Tuple, List, Optional
+
+import sqlite_spellfix
+import tqdm
+import wasabi
+
 
 from .compat import sqlite3
 from . import schemas
@@ -10,7 +14,22 @@ from . import wikidata
 from . import wikipedia
 
 
-def _get_paths(language: str) -> Dict[str, Path]:
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+
+def get_logger(handle: str) -> logging.Logger:
+    """Get logger for handle.
+    handle (str): Logger handle.
+    RETURNS (logging.Logger): Logger.
+    """
+    return logging.getLogger(handle)
+
+
+def get_paths(language: str) -> Dict[str, Path]:
     """Get paths.
     language (str): Language.
     RETURNS (Dict[str, Path]): Paths.
@@ -28,38 +47,25 @@ def _get_paths(language: str) -> Dict[str, Path]:
     }
 
 
-def establish_db_connection(language: str) -> sqlite3.Connection:
+def establish_db_connection(
+    language: str, db_path: Optional[Path] = None
+) -> sqlite3.Connection:
     """Estabished database connection.
     language (str): Language.
+    db_path (Optional[Path]): DB path to use. If none specified, get_paths(language) is invoked to determine DB path.
     RETURNS (sqlite3.Connection): Database connection.
     """
-    db_path = _get_paths(language)["db"]
+    db_path = get_paths(language)["db"] if db_path is None else db_path
     os.makedirs(db_path.parent, exist_ok=True)
-    db_conn = sqlite3.connect(_get_paths(language)["db"])
+    db_conn = sqlite3.connect(db_path)
+
+    # Use row factory to obtain records as dicts.
     db_conn.row_factory = sqlite3.Row
+    # Enable spellfix1 for fuzzy search (https://sqlite.org/spellfix1.html).
+    db_conn.enable_load_extension(True)
+    db_conn.load_extension(sqlite_spellfix.extension_path())
+
     return db_conn
-
-
-def extract_demo_dump(filter_terms: Set[str], language: str) -> None:
-    """Extracts small demo dump by parsing the Wiki dumps and keeping only those entities (and their articles)
-    containing any of the specified filter_terms. The retained entities and articles are written into intermediate
-    files.
-    filter_terms (Set[str]): Terms having to appear in entity descriptions in order to be wrr
-    language (str): Language.
-    """
-
-    _paths = _get_paths(language)
-    entity_ids, entity_labels = wikidata.extract_demo_dump(
-        _paths["wikidata_dump"], _paths["filtered_wikidata_dump"], filter_terms
-    )
-    with open(_paths["filtered_entity_entity_info"], "wb") as file:
-        pickle.dump((entity_ids, entity_labels), file)
-
-    with open(_paths["filtered_entity_entity_info"], "rb") as file:
-        _, entity_labels = pickle.load(file)
-    wikipedia.extract_demo_dump(
-        _paths["wikipedia_dump"], _paths["filtered_wikipedia_dump"], entity_labels
-    )
 
 
 def parse(
@@ -78,10 +84,14 @@ def parse(
     alias_prior_prob_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_prior_probs().
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
     """
-
-    _paths = _get_paths(language)
-    msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
-    assert not os.path.exists(_paths["db"]), msg
+    logger = get_logger(__file__)
+    _paths = get_paths(language)
+    if os.path.exists(_paths["db"]):
+        wasabi.msg.fail(
+            title="Database already exists.",
+            text=f"Delete {_paths['db']} manually or with `spacy project run delete_wiki_db` to generate new DB.",
+            exits=1,
+        )
 
     db_conn = db_conn if db_conn else establish_db_connection(language)
     with open(Path(os.path.abspath(__file__)).parent / "ddl.sql", "r") as ddl_sql:
@@ -94,6 +104,8 @@ def parse(
         db_conn,
         **(entity_config if entity_config else {}),
         lang=language,
+        parse_properties=False,
+        parse_claims=False,
     )
 
     wikipedia.read_prior_probs(
@@ -112,13 +124,60 @@ def parse(
         **(article_text_config if article_text_config else {}),
     )
 
+    # Update alias-entity probabilities (can only be done after parsing everything).
+    logger.info("Computing prior probabilities for alias-entity pairs.")
+    _update_prior_probs(db_conn, language)
+
+
+def _update_prior_probs(
+    db_conn: sqlite3.Connection, language: str, batch_size: int = 50000
+) -> None:
+    """Computes prior probabilities for all alias/entity pairs and updates DB with results.
+    db_conn (sqlite3.Connection): DB connection.
+    language (str): Language.
+    batch_size (int): Batch size (counted by aliases).
+    """
+    alias_entities_probs = load_alias_entity_prior_probabilities(language)
+    data: List[Tuple[float, str, str]] = []
+
+    def _update_batch() -> None:
+        """Update batch of alias-entity priors in DB."""
+        db_conn.cursor().executemany(
+            """
+            UPDATE
+                aliases_for_entities
+            SET
+                prior_prob=?
+            WHERE
+                alias=? AND
+                entity_id=?
+            """,
+            data,
+        )
+        db_conn.commit()
+
+    pbar = tqdm.tqdm(
+        alias_entities_probs.items(),
+        desc="Persisting prior probabilities of alias-entity pairs",
+    )
+    for alias, qid_probs in pbar:
+        data.extend([(qid_prob[1], alias, qid_prob[0]) for qid_prob in qid_probs])
+        if pbar.n % batch_size == 0:
+            _update_batch()
+            data = []
+
+    if len(data):
+        _update_batch()
+        pbar.n = len(alias_entities_probs)
+        pbar.refresh()
+
 
 def load_entities(
     language: str,
     qids: Tuple[str, ...] = tuple(),
     db_conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, schemas.Entity]:
-    """Loads information for entity or entities by querying information from DB.
+    """Loads information for entities by querying information from DB.
     Note that this doesn't return all available information, only the part used in the current benchmark solution.
     language (str): Language.
     qids (Tuple[str]): QIDS to look up. If empty, all entities are loaded.
@@ -176,6 +235,8 @@ def load_entities(
                     et.label,
                     at.title,
                     at.content
+                ORDER BY
+                    e.rowid
             """
             % ",".join("?" * len(qids)),
             tuple(set(qids)),
@@ -202,7 +263,7 @@ def load_alias_entity_prior_probabilities(
             )
         ]
         for rec in db_conn.cursor().execute(
-            """
+            f"""
                 SELECT
                     alias,
                     GROUP_CONCAT(entity_id) as entity_ids,

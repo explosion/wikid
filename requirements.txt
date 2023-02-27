@@ -1,4 +1,7 @@
-spacy
+# spacy
+spacy @ git+https://github.com/rmitsch/spaCy.git@feature/candidate-generation-by-docs
 pyyaml
 tqdm
 prettytable
+annoy
+sqlite-spellfix @ git+https://github.com/rmitsch/sqlite-spellfix.git@fix/windows-build

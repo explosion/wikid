@@ -5,17 +5,15 @@
 --  1. For efficient full-text search we're using FTS5 virtual tables, which don't support index lookup as efficient as
 --     an index lookup in a normal table. Hence we split the data we want to use for full-text search from the
 --     identifiying keys (entity/article IDs).
---  2. All article data could just as well be part of the entities and/or entities_texts. This is not done due to the
---     sequential nature of our Wiki parsing: first the Wikidata dump (entities) are read and stored in the DB, then the
+--  2. All article data could just as well be part of the tables entities and/or entities_texts. This is not done due to
+--     the sequential nature of our Wiki parsing: first the Wikidata dump (entities) are read and stored in the DB, then the
 --     Wikipedia dump (articles). We could update the entities table, but this is less efficient than inserting new
 --     records. If profiling shows this not to be a bottleneck, we may reconsider merging these two tables.
+-- See also https://www.sqlite.org/fts5.html.
 
 CREATE TABLE entities (
     -- Equivalent to Wikidata QID.
-    id TEXT PRIMARY KEY NOT NULL,
-    -- Claims found for this entity.
-    -- This could be normalized. Not worth it at the moment though, since claims aren't used.
-    claims TEXT
+    id TEXT PRIMARY KEY NOT NULL
 );
 
 -- The FTS5 virtual table implementation doesn't allow for indices, so we rely on ROWID to match entities.
@@ -52,27 +50,22 @@ CREATE VIRTUAL TABLE articles_texts USING fts5(
     content
 );
 
-CREATE TABLE properties_in_entities (
-    -- ID of property describing relationships between entities.
-    property_id TEXT NOT NULL,
-    -- ID of source entity.
-    from_entity_id TEXT NOT NULL,
-    -- ID of destination entity.
-    to_entity_id TEXT NOT NULL,
-    PRIMARY KEY (property_id, from_entity_id, to_entity_id),
-    FOREIGN KEY(from_entity_id) REFERENCES entities(id),
-    FOREIGN KEY(to_entity_id) REFERENCES entities(id)
-);
-CREATE INDEX idx_properties_in_entities
-ON properties_in_entities (property_id);
+-- Virtual table for aliases, capable of on-disk fuzzy matching.
+-- https://sqlite.org/spellfix1.html
+-- This duplicates aliases also in aliases_for_entities. A better long-term solution would be to reference aliases in
+-- this table via their ROWID, but requires more involved ways to insert and query data to ensure data integrity (the
+-- spellfix table can't have additional indices, just like FTS5).
+CREATE VIRTUAL TABLE aliases USING spellfix1;
 
 CREATE TABLE aliases_for_entities (
-    -- Alias for entity label.
-    alias TEXT NOT NULL,
+    -- Alias' row ID for entity label. Use COLLATE NOCASE for case-insensitive searches.
+    alias TEXT NOT NULL COLLATE NOCASE,
     -- Equivalent to Wikidata QID.
     entity_id TEXT NOT NULL,
     -- Count of alias occurence in Wiki articles.
     count INTEGER,
+    -- Prior probability that this alias refers to this entity.
+    prior_prob REAL,
     PRIMARY KEY (alias, entity_id),
     FOREIGN KEY(entity_id) REFERENCES entities(id)
 );
