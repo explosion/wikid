@@ -14,7 +14,7 @@ vars:
   vectors_model: "en_core_web_lg"
   filter: "True"
 
-directories: ["assets", "configs", "scripts", "output"]
+directories: ["assets", "configs", "src", "output"]
 
 assets:
   - dest: 'assets/wikidata_entity_dump.json.bz2'
@@ -44,7 +44,7 @@ commands:
   - name: parse
     help: "Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!"
     script:
-      - "env PYTHONPATH=scripts python ./scripts/cli_parse.py ${vars.language} ${vars.filter}"
+      - "env PYTHONPATH=src python ./scripts/cli_parse.py ${vars.language} ${vars.filter}"
     outputs:
       - "output/${vars.language}/wiki.sqlite3"
 
@@ -56,7 +56,7 @@ commands:
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "env PYTHONPATH=scripts python ./scripts/cli_create_kb.py ${vars.vectors_model} ${vars.language}"
+      - "env PYTHONPATH=src python ./scripts/cli_create_kb.py ${vars.vectors_model} ${vars.language}"
     deps:
       - "output/${vars.language}/wiki.sqlite3"
     outputs:

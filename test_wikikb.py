@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import spacy
 
-from scripts.kb import WikiKB
-from scripts.extraction import establish_db_connection
+from src.kb import WikiKB
+from src.extraction import establish_db_connection
 
 _language = "en"
 
@@ -22,7 +22,7 @@ def _db_path() -> Path:
     # Construct DB.
     db_conn = establish_db_connection(_language, db_path)
     with open(
-        Path(os.path.abspath(__file__)).parent / "scripts" / "extraction" / "ddl.sql",
+        Path(os.path.abspath(__file__)).parent / "src" / "extraction" / "ddl.sql",
         "r",
     ) as ddl_sql:
         db_conn.cursor().executescript(ddl_sql.read())

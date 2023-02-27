@@ -34,5 +34,5 @@ jobs:
                 spacy download en_core_web_sm
             displayName: 'Install test dependencies'
 
-          - script: env PYTHONPATH=scripts python -m pytest
+          - script: env PYTHONPATH=src python -m pytest
             displayName: 'Run pytest'
