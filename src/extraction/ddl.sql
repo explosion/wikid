@@ -13,8 +13,12 @@
 
 CREATE TABLE entities (
     -- Equivalent to Wikidata QID.
-    id TEXT PRIMARY KEY NOT NULL
+    id TEXT PRIMARY KEY NOT NULL,
+    -- 0 if it's content, 1 if it's meta (i.e. category/disambiguation page). SQLite doesn't support bools.
+    is_meta INT
 );
+CREATE INDEX idx_entities_ismeta
+ON entities (is_meta);
 
 -- The FTS5 virtual table implementation doesn't allow for indices, so we rely on ROWID to match entities.
 -- This isn't great, but with a controlled data ingestion setup this allows for stable matching.

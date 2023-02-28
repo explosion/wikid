@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Union, Optional, Dict, Tuple, Any, List, Set
 
 import tqdm
+import yaml
 
 from .compat import sqlite3
 from .utils import get_logger
@@ -200,23 +201,28 @@ def read_entities(
                             id_to_attrs[unique_id]["aliases"] = []
                             aliases = obj["aliases"]
                             if aliases:
-                                lang_aliases = aliases.get(lang, None)
-                                if lang_aliases:
-                                    for item in lang_aliases:
-                                        id_to_attrs[unique_id]["aliases"].append(
-                                            item["value"]
-                                        )
+                                # Merge aliases in this language with aliases in English. Most aliases are specified in
+                                # English, much less so in any other languages. Often these other languages still refer
+                                # to an entity with an English alias or one that is similar to it, so it makes sense to
+                                # still consider English aliases.
+                                for item in [
+                                    *aliases.get(lang, []),
+                                    *aliases.get("en", []),
+                                ]:
+                                    id_to_attrs[unique_id]["aliases"].append(
+                                        item["value"]
+                                    )
 
             pbar.update(1)
 
             # Save batch.
             if pbar.n % batch_size == 0:
-                _write_to_db(db_conn, title_to_id, id_to_attrs)
+                _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
                 title_to_id = {}
                 id_to_attrs = {}
 
     if pbar.n % batch_size != 0:
-        _write_to_db(db_conn, title_to_id, id_to_attrs)
+        _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
 
     logger.info("Synchronizing aliases table.")
     db_conn.cursor().execute(
@@ -229,20 +235,33 @@ def _write_to_db(
     db_conn: sqlite3.Connection,
     title_to_id: Dict[str, str],
     id_to_attrs: Dict[str, Dict[str, Any]],
+    lang: str,
 ) -> None:
     """Persists qid information to database.
     db_conn (Connection): Database connection.
     title_to_id (Dict[str, str]): Titles to QIDs.
     id_to_attrs (Dict[str, Dict[str, Any]]): For QID a dictionary with property name to property value(s).
+    lang (str): Language.
     """
 
-    entities: List[Tuple[Optional[str], ...]] = []
+    entities: List[Tuple[str, int]] = []
     entities_texts: List[Tuple[Optional[str], ...]] = []
     aliases_for_entities: List[Tuple[str, str, int]] = []
+    # Text snippets indicating entity is a meta entity, i.e. a category or disambiguation page.
+    with open(
+        Path(__file__).parent.parent.parent / "configs" / "meta_terms.yaml", "r"
+    ) as stream:
+        meta_indicators = set(yaml.safe_load(stream)["entities"][lang])
 
     for title, qid in title_to_id.items():
         label = id_to_attrs[qid].get("labels", {}).get("value", None)
-        entities.append((qid,))
+        # Don't save meta entities.
+        if any(
+            [mi in id_to_attrs[qid].get("description", "") for mi in meta_indicators]
+        ):
+            continue
+
+        entities.append((qid, 0))
         entities_texts.append(
             (
                 qid,
@@ -257,7 +276,7 @@ def _write_to_db(
 
     cur = db_conn.cursor()
     cur.executemany(
-        "INSERT INTO entities (id) VALUES (?)",
+        "INSERT INTO entities (id, is_meta) VALUES (?, ?)",
         entities,
     )
     cur.executemany(
