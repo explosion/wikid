@@ -75,6 +75,8 @@ def parse(
     article_text_config: Optional[Dict[str, Any]] = None,
     alias_prior_prob_config: Optional[Dict[str, Any]] = None,
     use_filtered_dumps: bool = False,
+    merge_with_en_aliases: bool = True,
+    store_meta_entities: bool = False,
 ) -> None:
     """Parses Wikipedia and Wikidata dumps. Writes parsing results to a database. Note that this takes hours.
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
@@ -83,6 +85,10 @@ def parse(
     article_text_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_text().
     alias_prior_prob_config (Dict[str, Any]): Arguments to be passed on to wikipedia.read_prior_probs().
     use_filtered_dumps (bool): Whether to use small, filtered Wiki dumps.
+    merge_with_en_aliases (bool): Whether to merge aliases in Wikidata in target language with English aliases. If the
+        target language is English, this doesn't have any effect.
+    store_meta_entities (bool): Whether to store meta entities (disambiguations, categories, ...) in database/knowledge
+        base.
     """
     logger = get_logger(__file__)
     _paths = get_paths(language)
@@ -106,6 +112,8 @@ def parse(
         lang=language,
         parse_properties=False,
         parse_claims=False,
+        merge_with_en_aliases=merge_with_en_aliases,
+        store_meta_entities=store_meta_entities,
     )
 
     wikipedia.read_prior_probs(

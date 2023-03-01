@@ -48,6 +48,8 @@ def _read_dump(
 def read_entities(
     wikidata_file: Union[str, Path],
     db_conn: sqlite3.Connection,
+    merge_with_en_aliases: bool,
+    store_meta_entities: bool,
     batch_size: int = 10000,
     limit: Optional[int] = None,
     lang: str = "en",
@@ -61,6 +63,10 @@ def read_entities(
     """Reads qid information from wikidata dump.
     wikidata_file (Union[str, Path]): Path of wikidata dump file.
     db_conn (sqlite3.Connection): DB connection.
+    merge_with_en_aliases (bool): Whether to merge aliases in Wikidata in target language with English aliases. If the
+        target language is English, this doesn't have any effect.
+    store_meta_entities (bool): Whether to store meta entities (disambiguations, categories, ...) in database/knowledge
+        base.
     batch_size (int): Batch size for DB commits.
     limit (Optional[int]): Max. number of entities to parse.
     to_print (bool): Whether to print information during the parsing process.
@@ -207,7 +213,11 @@ def read_entities(
                                 # still consider English aliases.
                                 for item in [
                                     *aliases.get(lang, []),
-                                    *aliases.get("en", []),
+                                    *(
+                                        aliases.get("en", [])
+                                        if merge_with_en_aliases
+                                        else []
+                                    ),
                                 ]:
                                     id_to_attrs[unique_id]["aliases"].append(
                                         item["value"]
@@ -217,12 +227,14 @@ def read_entities(
 
             # Save batch.
             if pbar.n % batch_size == 0:
-                _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
+                _write_to_db(
+                    db_conn, title_to_id, id_to_attrs, lang, store_meta_entities
+                )
                 title_to_id = {}
                 id_to_attrs = {}
 
     if pbar.n % batch_size != 0:
-        _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
+        _write_to_db(db_conn, title_to_id, id_to_attrs, lang, store_meta_entities)
 
     logger.info("Synchronizing aliases table.")
     db_conn.cursor().execute(
@@ -236,12 +248,15 @@ def _write_to_db(
     title_to_id: Dict[str, str],
     id_to_attrs: Dict[str, Dict[str, Any]],
     lang: str,
+    store_meta_entities: bool,
 ) -> None:
     """Persists qid information to database.
     db_conn (Connection): Database connection.
     title_to_id (Dict[str, str]): Titles to QIDs.
     id_to_attrs (Dict[str, Dict[str, Any]]): For QID a dictionary with property name to property value(s).
     lang (str): Language.
+    store_meta_entities (bool): Whether to store meta entities (disambiguations, categories, ...) in database/knowledge
+        base.
     """
 
     entities: List[Tuple[str, int]] = []
@@ -256,7 +271,7 @@ def _write_to_db(
     for title, qid in title_to_id.items():
         label = id_to_attrs[qid].get("labels", {}).get("value", None)
         # Don't save meta entities.
-        if any(
+        if not store_meta_entities and any(
             [mi in id_to_attrs[qid].get("description", "") for mi in meta_indicators]
         ):
             continue
