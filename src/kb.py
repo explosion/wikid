@@ -88,7 +88,7 @@ class WikiKB(KnowledgeBase):
             self._init_annoy_from_file()
 
     def establish_db_connection(self) -> None:
-        """Establishes connection to DB."""
+        """Establishes connection to database."""
         self._db_conn = establish_db_connection(self._language, self._paths["db"])
 
     def build_embeddings_index(
