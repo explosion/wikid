@@ -16,7 +16,7 @@ import wasabi
 from spacy import Vocab, Language
 from spacy.kb import KnowledgeBase, Candidate
 from spacy.tokens import Span
-from spacy.util import SimpleFrozenList
+from spacy.util import SimpleFrozenList, SimpleFrozenDict
 
 from extraction.utils import (
     establish_db_connection,
@@ -274,22 +274,6 @@ class WikiKB(KnowledgeBase):
         """
         return next(iter(self.get_vectors([qid])))
 
-    @staticmethod
-    def _hash_file(file_path: Path, blocksize: int = 2**20) -> str:
-        """Generates MD5 file of hash iteratively (without loading entire file into memory).
-        Source: https://stackoverflow.com/a/1131255.
-        file_path (Path): Path of file to hash.
-        blocksize (int): Size of blocks to load into memory (in bytes).
-        RETURN (str): MD5 hash of file.
-        """
-        file_hash = hashlib.md5()
-        with open(file_path, "rb") as f:
-            buf = f.read(blocksize)
-            while buf:
-                file_hash.update(buf)
-                buf = f.read(blocksize)
-        return file_hash.hexdigest()
-
     def _fetch_candidates_by_alias(
         self, mentions: Tuple[Span, ...]
     ) -> Dict[str, List[Dict[str, Union[str, int, float]]]]:
@@ -442,7 +426,9 @@ class WikiKB(KnowledgeBase):
         key (str): Key for file to hash - has to be in self._paths.
         RETURNS (str): File hash.
         """
-        self._hashes[key] = self._hash_file(self._paths[key])
+        self._hashes[key] = (
+            self._hash_file(self._paths[key]) if self._paths[key] is not None else None
+        )
         return self._hashes[key]
 
     def to_bytes(self, **kwargs) -> bytes:
@@ -454,7 +440,10 @@ class WikiKB(KnowledgeBase):
                 "meta": lambda: srsly.json_dumps(
                     data=(
                         self._language,
-                        {key: str(path) for key, path in self._paths.items()},
+                        {
+                            key: str(path) if path else None
+                            for key, path in self._paths.items()
+                        },
                         self.entity_vector_length,
                         self._top_k_aliases,
                         self._top_k_entities_alias,
@@ -484,7 +473,7 @@ class WikiKB(KnowledgeBase):
             """
             meta_info = srsly.json_loads(value)
             self._language = meta_info[0]
-            self._paths = {k: Path(v) for k, v in meta_info[1].items()}
+            self._paths = {k: Path(v) if v else None for k, v in meta_info[1].items()}
             self.entity_vector_length = meta_info[2]
             self._top_k_aliases = meta_info[3]
             self._top_k_entities_alias = meta_info[4]
@@ -494,11 +483,13 @@ class WikiKB(KnowledgeBase):
             self._hashes["db"] = meta_info[8]
             self._hashes["annoy"] = meta_info[9]
 
+            self._db_conn = establish_db_connection(self._language, self._paths["db"])
             self._init_annoy_from_file()
-            for file_id in ("annoy", "db"):
+
+            for file_id in self._hashes:
                 assert self._hashes[file_id] == self._hash_file(
                     self._paths[file_id]
-                ), f"File with internal ID {file_id} does not match deserialized hash."
+                ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
         spacy.util.from_bytes(
             bytes_data,
@@ -531,8 +522,8 @@ class WikiKB(KnowledgeBase):
             with open(file_path, "wb") as file:
                 pickle.dump(value, file)
 
-        self._update_hash("db")
-        self._update_hash("annoy")
+        for file_id in self._paths:
+            self._update_hash(file_id)
 
         serialize = {
             "meta": lambda p: pickle_data(
@@ -585,11 +576,15 @@ class WikiKB(KnowledgeBase):
                 self._n_trees = meta_info[7]
                 self._hashes = meta_info[8]
 
+                self._db_conn = establish_db_connection(
+                    self._language, self._paths["db"]
+                )
                 self._init_annoy_from_file()
-                for file_id in ("annoy", "db"):
+
+                for file_id in self._hashes:
                     assert self._hashes[file_id] == self._hash_file(
                         self._paths[file_id]
-                    ), f"File with internal ID {file_id} does not match deserialized hash."
+                    ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
         deserialize = {
             "meta": lambda p: deserialize_meta_info(p),
@@ -597,59 +592,103 @@ class WikiKB(KnowledgeBase):
         }
         spacy.util.from_disk(path, deserialize, exclude)
 
-    @staticmethod
-    def _pick_candidate_sequences(
-        embeddings: numpy.ndarray, beam_width: int
-    ) -> List[Tuple[List[int], float]]:
-        """Pick sequences of candidates, ranked by their cohesion. Cohesion is measured as the average cosine similarity
-        between the average embedding in a sequence and the individual embeddings.
-        Each row contains all candidates per mention. Selects heuristically via beam search.
-        Modified from https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/.
-        embeddings (numpy.ndarray): 2D matrix with embedding vectors per candidate.
-        beam_width (int): Beam width.
-        RETURN (List[Tuple[List[int], float]]): List of sequences of candidate indices in embeddings matrix & their
-            corresponding cohesion score.
+    @classmethod
+    def generate_from_disk(
+        cls,
+        path: Union[str, Path],
+        exclude: Iterable[str] = SimpleFrozenList(),
+        artifact_paths: Dict[str, Optional[Path]] = SimpleFrozenDict(),
+        check_hashes_of_overridden_artifacts: bool = True,
+        **kwargs,
+    ) -> "WikiKB":
         """
-        # todo add shape check (3D) for embeddings
-        # todo step-by-step debugging with real data to verify assumptions
-        # todo ensure correct shape processing in numpy operations
-        sequences: List[Tuple[List[int], float]] = [([], 0.0)]
-        dim = len(embeddings[0][0])
+        Generate WikiKnowledgeBase instance from disk. Passed kwargs override arguments for __init__() of new instance
+        read from disk.
+        path (Union[str, Path]): Target file path.
+        exclude (Iterable[str]): List of components to exclude.
+        artifact_paths (Dict[str, Optional[Path]]): Dictionary with paths to external artifacts (such as database or
+            index files). Keys not in self._paths are ignored.
+        check_hashes_of_overridden_artifacts (bool): Whether to check equality of stored file hashes to the hashes of
+            files specified in artifact_paths. It can be useful to disable this for certain workflows - in general this
+            should only be set to False if strictly necessary, as it disables a consistency precaution.
+            Ideally we support handling of these workflows in a more consistent way and drop this argument.
+        return (WikiKB): Generated WikiKB instance.
+        """
+        path = spacy.util.ensure_path(path)
+        if not path.exists():
+            raise ValueError(spacy.Errors.E929.format(loc=path))
+        if not path.is_dir():
+            raise ValueError(spacy.Errors.E928.format(loc=path))
+        args: Dict[str, Any] = {"vocab": Vocab(strings=["."])}
+        hashes: Dict[str, str] = {}
 
-        for row_idx, row in enumerate(embeddings):
-            all_candidates: List[Tuple[List[int], float]] = []
-            # Expand each candidate.
-            for i in range(len(sequences)):
-                sequence = sequences[i]
-                # Compute sum of embeddings already in this sequence. If this is the first row and `sequences` is hence
-                # empty, we assume a vector of zeroes.
-                seq_prev_embeddings = [
-                    embeddings[_row_idx][col_idx]
-                    for _row_idx, col_idx in enumerate(sequence[0])
-                ]
-                seq_sum_prev_embeddings = (
-                    numpy.sum(seq_prev_embeddings) if row_idx > 0 else numpy.zeros(dim)
-                )
+        def deserialize_meta_info(file_path: Path) -> None:
+            """
+            Deserializes meta info.
+            file_path (Path): File path.
+            """
+            with open(file_path, "rb") as file:
+                meta_info = pickle.load(file)
+                args["language"] = meta_info[0]
+                args["db_path"] = artifact_paths.get("db", meta_info[1]["db"])
+                args["annoy_path"] = artifact_paths.get("annoy", meta_info[1]["annoy"])
+                args["entity_vector_length"] = meta_info[2]
+                args["top_k_aliases"] = meta_info[3]
+                args["top_k_entities_alias"] = meta_info[4]
+                args["top_k_entities_fts"] = meta_info[5]
+                args["threshold_alias"] = meta_info[6]
+                args["n_trees"] = meta_info[7]
+                for _file_id, _file_hash in meta_info[8].items():
+                    hashes[_file_id] = _file_hash
 
-                for j in range(len(row)):
-                    # Compute average sequence embedding, including potential next sequence element.
-                    seq_avg_embedding = numpy.sum(seq_sum_prev_embeddings, row[j]) / (
-                        row_idx + 1
-                    )
-                    seq_embeddings = [*seq_prev_embeddings, row[j]]
+        spacy.util.from_disk(
+            path,
+            {
+                "meta": lambda p: deserialize_meta_info(p),
+                "vocab.json": lambda p: args["vocab"].strings.from_disk(p),
+            },
+            exclude,
+        )
 
-                    # Compute cohesion as cosine similarity.
-                    cohesion = numpy.mean(
-                        (seq_avg_embedding @ seq_embeddings)
-                        / (
-                            numpy.linalg.norm(seq_avg_embedding)
-                            * numpy.linalg.norm(seq_embeddings)
-                        )
-                    )
-                    candidate = [(*sequence[0], j), cohesion]
-                    all_candidates.append(candidate)
+        # Initialize instance, set hashes manually since they aren't specified on initialization.
+        kb = cls(**{**args, **kwargs})
+        kb._hashes = hashes
+        # Check for hash equality (mismatch indicates there might be an issue with DB/Annoy file paths or files).
+        for file_id in kb._hashes:
+            # Skip hash equality check if file path has been over
+            if file_id in artifact_paths and not check_hashes_of_overridden_artifacts:
+                continue
+            assert kb._hashes[file_id] == kb._hash_file(
+                kb._paths[file_id]
+            ), f"File with internal ID '{file_id}' does not match deserialized hash."
 
-            # Order all candidates by cohesion, select beam_width best sets.
-            sequences = sorted(all_candidates, key=lambda tup: tup[1])[:beam_width]  # type: ignore
+        return kb
 
-        return sequences
+    @staticmethod
+    def _hash_file(
+        file_path: Optional[Path], blocksize: int = 2**20
+    ) -> Optional[str]:
+        """Generates MD5 file of hash iteratively (without loading entire file into memory).
+        Source: https://stackoverflow.com/a/1131255.
+        file_path (Path): Path of file to hash.
+        blocksize (int): Size of blocks to load into memory (in bytes).
+        RETURN (str): MD5 hash of file. None if file_path is None.
+        """
+        if file_path is None:
+            return None
+
+        file_hash = hashlib.md5()
+        with open(file_path, "rb") as f:
+            buf = f.read(blocksize)
+            while buf:
+                file_hash.update(buf)
+                buf = f.read(blocksize)
+        return file_hash.hexdigest()
+
+    def update_path(self, file_id: str, path: Optional[Path]) -> None:
+        """Update path. Includes update of file hash.
+        file_id (str): File ID.
+        path (Optional[Path]): Path to file.
+        """
+        self._paths[file_id] = path
+        self._update_hash(file_id)
