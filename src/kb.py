@@ -362,7 +362,8 @@ class WikiKB(KnowledgeBase):
                 + f"""
                 ) matches
                 INNER JOIN entities e ON
-                    e.id = matches.entity_id
+                    e.id = matches.entity_id AND
+                    e.is_meta IS FALSE
                 ORDER BY
                     matches.mention
                 """,
@@ -411,7 +412,8 @@ class WikiKB(KnowledgeBase):
                     LIMIT {self._top_k_entities_fts}
                 ) match
                 INNER JOIN entities e ON
-                    e.ROWID = match.ROWID
+                    e.ROWID = match.ROWID AND
+                    e.is_meta IS FALSE
                 INNER JOIN aliases_for_entities afe ON
                     e.id = afe.entity_id
                 GROUP BY
