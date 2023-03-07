@@ -126,7 +126,9 @@ def _kb(_db_path) -> WikiKB:
     _db_path (Path): Path to database / fixture constructing database in temporary directory.
     RETURNS (WikiKB): WikiKB instance.
     """
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load(
+        "en_core_web_sm", exclude=["tagger", "lemmatizer", "attribute_ruler"]
+    )
     kb = WikiKB(
         nlp.vocab,
         nlp(".").vector.shape[0],
@@ -206,7 +208,7 @@ def test_initialization(_kb) -> None:
 
 
 @pytest.mark.parametrize("method", ["bytes", "disk"])
-def test_serialization(_kb, method: str) -> None:
+def test_kb_serialization(_kb, method: str) -> None:
     """Tests KB serialization (to and from byte strings, to and from disk).
     method (str): Method to use for serialization. Has to be one of ("bytes", "disk").
     """
@@ -322,3 +324,11 @@ def test_serialized_mention_lookups(_kb_with_lookup_file) -> None:
     _verify_candidate_retrieval_results(
         _kb_with_lookup_file, [doc[:2], doc[3:]], [["Q60"], ["Q100", "Q60"]]
     )
+
+
+def test_kb_without_db(_kb) -> None:
+    """Tests whether KB raises the expected error when calling methods utilizing the DB w/o setting the DB path."""
+    _kb.get_vector("Q60")
+    _kb._db_conn = None
+    with pytest.raises(ValueError):
+        _kb.get_vector("Q60")
