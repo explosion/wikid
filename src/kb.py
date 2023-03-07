@@ -91,6 +91,13 @@ class WikiKB(KnowledgeBase):
         """Establishes connection to database."""
         self._db_conn = establish_db_connection(self._language, self._paths["db"])
 
+    def _ensure_db_connection(self) -> None:
+        """Ensures DB connection is set. If not, a ValueError is raised."""
+        if self._db_conn is None:
+            raise ValueError(
+                "DB connection must be set before this operation is invoked."
+            )
+
     def build_embeddings_index(
         self, nlp: Language, n_jobs: int = -1, batch_size: int = 2**14
     ) -> None:
@@ -99,6 +106,7 @@ class WikiKB(KnowledgeBase):
         n_jobs (int): Number of jobs to use for inferring entity embeddings and building the index.
         batch_size (int): Number of entities to request at once.
         """
+        self._ensure_db_connection()
         logger = logging.getLogger(__name__)
 
         if self._annoy:
@@ -194,6 +202,8 @@ class WikiKB(KnowledgeBase):
         mentions (Iterator[Iterable[Span]]): Mentions per documents for which to get candidates.
         YIELDS (Iterator[_DocCandidates]): Identified candidates per document.
         """
+        self._ensure_db_connection()
+
         for mentions_in_doc in mentions:
             mentions_in_doc = tuple(mentions_in_doc)
             alias_matches = self._fetch_candidates_by_alias(mentions_in_doc)
@@ -260,6 +270,7 @@ class WikiKB(KnowledgeBase):
         qids (str): Wiki QIDs.
         RETURNS (Iterable[Iterable[float]]): Vectors for specified entities.
         """
+        self._ensure_db_connection()
         if not isinstance(qids, Sized):
             qids = set(qids)
 

@@ -218,3 +218,11 @@ def test_kb_serialization(_kb, method: str) -> None:
             )
         ]
     )
+
+
+def test_kb_wo_db(_kb) -> None:
+    """Tests whether KB raises the expected error when calling methods utilizing the DB w/o setting the DB path."""
+    _kb.get_vector("Q60")
+    _kb._db_conn = None
+    with pytest.raises(ValueError):
+        _kb.get_vector("Q60")
