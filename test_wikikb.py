@@ -150,6 +150,7 @@ def test_kb_generation(_kb) -> None:
             for table in ("entities", "articles", "entities_texts", "articles_texts")
         ]
     )
+    assert len(_kb) == 3
     assert (
         _kb._db_conn.cursor()
         .execute("SELECT count(*) FROM aliases_for_entities")
