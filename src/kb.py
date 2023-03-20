@@ -396,7 +396,7 @@ class WikiKB(KnowledgeBase):
         top_k_aliases (int): Number of aliases to consider (sorted from best to worst match).
         top_k_entities_alias (int): Number of entities to consider (sorted from best to worst match).
         mentions (Iterable[str]): mentions to look up.
-        RETURNS (List[MentionEntity]): List of MentionEntity instances for mention-alias pairs.
+        RETURNS (List[MentionEntity]): List of MentionEntity instances for mention-entity pairs.
         """
         mentions = list(mentions)
 
