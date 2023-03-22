@@ -5,6 +5,7 @@ from .src import (
     load_alias_entity_prior_probabilities,
     parse,
     namespaces,
+    kb,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "load_alias_entity_prior_probabilities",
     "parse",
     "namespaces",
+    "kb",
 ]
