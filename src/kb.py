@@ -317,7 +317,7 @@ class WikiKB(KnowledgeBase):
                                 entity_vector=list(
                                     next(iter(self._get_vectors([cand_data.rowid])))
                                 ),
-                                prior_prob=-1,
+                                prior_prob=cand_data.max_prior_prob,
                             )
                         )
 
