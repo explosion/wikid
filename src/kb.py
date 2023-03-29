@@ -741,7 +741,10 @@ class WikiKB(KnowledgeBase):
             "meta": lambda p: pickle_data(
                 (
                     self._language,
-                    self._paths,
+                    {
+                        key: str(_path) if _path else None
+                        for key, _path in self._paths.items()
+                    },
                     self.entity_vector_length,
                     self._top_k_aliases,
                     self._top_k_entities_alias,
@@ -779,7 +782,7 @@ class WikiKB(KnowledgeBase):
             with open(file_path, "rb") as file:
                 meta_info = pickle.load(file)
                 self._language = meta_info[0]
-                self._paths = meta_info[1]
+                self._paths = {k: Path(v) for k, v in meta_info[1].items()}
                 self.entity_vector_length = meta_info[2]
                 self._top_k_aliases = meta_info[3]
                 self._top_k_entities_alias = meta_info[4]
