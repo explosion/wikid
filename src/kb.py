@@ -742,7 +742,7 @@ class WikiKB(KnowledgeBase):
                 (
                     self._language,
                     {
-                        key: str(_path) if _path else None
+                        key: str(_path.absolute()) if _path else None
                         for key, _path in self._paths.items()
                     },
                     self.entity_vector_length,
