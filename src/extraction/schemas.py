@@ -4,7 +4,7 @@ from typing import Set, Optional
 
 from pydantic.fields import Field
 from pydantic.main import BaseModel
-from pydantic.types import StrictInt
+from pydantic.types import StrictInt, StrictFloat
 
 
 class Entity(BaseModel):
@@ -26,3 +26,20 @@ class Annotation(BaseModel):
     entity_id: Optional[str] = Field(None, title="Entity ID.")
     start_pos: StrictInt = Field(..., title="Start character position.")
     end_pos: StrictInt = Field(..., title="End character position.")
+
+
+class MentionEntity(BaseModel):
+    """Schema for mention-entity pair."""
+
+    mention_text: str = Field(..., title="Mention text")
+    entity_id: str = Field(..., title="Entity ID")
+    rowid: StrictInt = Field(..., title="Row ID of entity in table `entities`")
+    max_prior_prob: StrictFloat = Field(
+        -1, title="Max. prior probability between entity and all matching aliases"
+    )
+    min_distance: StrictFloat = Field(
+        -1, title="Min. distance between all aliases and this entity"
+    )
+    sum_occurence_count: StrictInt = Field(
+        0, title="Summed up count of all aliases linked to this entity"
+    )
