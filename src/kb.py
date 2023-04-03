@@ -534,8 +534,10 @@ class WikiKB(KnowledgeBase):
                 )
             ):
                 for mention_alias in mention_alias_batch:
-                    mention_entities_by_mention[mention_alias.mention] = [
-                        *mention_entities_by_mention.get(mention_alias.mention, []),
+                    mention_entities_by_mention[mention_alias.mention_text] = [
+                        *mention_entities_by_mention.get(
+                            mention_alias.mention_text, []
+                        ),
                         mention_alias,
                     ]
 

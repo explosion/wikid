@@ -31,7 +31,7 @@ class Annotation(BaseModel):
 class MentionEntity(BaseModel):
     """Schema for mention-entity pair."""
 
-    mention: str = Field(..., title="Mention")
+    mention_text: str = Field(..., title="Mention text")
     entity_id: str = Field(..., title="Entity ID")
     rowid: StrictInt = Field(..., title="Row ID of entity in table `entities`")
     max_prior_prob: StrictFloat = Field(
