@@ -121,7 +121,7 @@ class WikiKB(KnowledgeBase):
         mention_candidates_path (Optional[Path]): If this is not None, `WikiKB` instance will look up annotations
             for mentions exclusively from this file instead of searching for fitting entities itself. An error will be
             raised if this is not None and `get_candidates()` or `get_candidates_all()` are invoked with mentions that
-            are not inlcuded in the file. The expected file format is a pickled `Dict[str, Iterable[WikiKBCandidate]]`,
+            are not included in the file. The expected file format is a pickled `Dict[str, Iterable[WikiKBCandidate]]`,
             where the key is the full mention string.
                 establish_db_connection_at_init (bool): Whether to establish a DB connection on instance initialization. It
             might make sense to set this to False when the DB path isn't known at initialization time. If this is False,
