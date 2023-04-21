@@ -2,6 +2,7 @@
 
 # 🪐 spaCy Project: wikid
 
+[![tests](https://github.com/explosion/wikid/actions/workflows/tests.yml/badge.svg)](https://github.com/explosion/wikid/actions/workflows/tests.yml)
 [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
 <br/> _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database
 and a spaCy `KnowledgeBase` from Wikipedia & Wikidata dumps. `wikid` was
