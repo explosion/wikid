@@ -2,14 +2,12 @@
 
 # 🪐 spaCy Project: wikid
 
-[![Azure Pipelines](https://img.shields.io/azure-devops/build/explosion-ai/public/32/main.svg?logo=azure-pipelines&style=flat-square&label=build)](https://dev.azure.com/explosion-ai/public/_build?definitionId=32)
 [![spaCy](https://img.shields.io/static/v1?label=made%20with%20%E2%9D%A4%20and&message=spaCy&color=09a3d5&style=flat-square)](https://spacy.io)
-<br/>
-_No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database and a spaCy `KnowledgeBase` from Wikipedia & 
-Wikidata dumps. `wikid` was designed with the use case of named entity linking (NEL) with spaCy in mind.
-<br/>
-Note this repository is still in an experimental stage, so the public API might change at any time. 
-
+<br/> _No REST for the `wikid`_ :jack_o_lantern: - generate a SQLite database
+and a spaCy `KnowledgeBase` from Wikipedia & Wikidata dumps. `wikid` was
+designed with the use case of named entity linking (NEL) with spaCy in mind.
+<br/> Note this repository is still in an experimental stage, so the public API
+might change at any time.
 
 ## 📋 project.yml
 
@@ -19,40 +17,40 @@ project, as well as the available commands and workflows. For details, see the
 
 ### ⏯ Commands
 
-The following commands are defined by the project. They
-can be executed using [`spacy project run [name]`](https://spacy.io/api/cli#project-run).
-Commands are only re-run if their inputs have changed.
+The following commands are defined by the project. They can be executed using
+[`spacy project run [name]`](https://spacy.io/api/cli#project-run). Commands are
+only re-run if their inputs have changed.
 
-| Command | Description |
-| --- | --- |
-| `parse` | Parse Wiki dumps. This can take a long time if you're not using the filtered dumps! |
-| `download_model` | Download spaCy language model. |
-| `create_kb` | Creates KB utilizing SQLite database with Wiki content. |
-| `delete_db` | Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump. |
-| `clean` | Delete all generated artifacts except for SQLite database. |
+| Command          | Description                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| `parse`          | Parse Wiki dumps. This can take a long time if you're not using the filtered dumps!                           |
+| `download_model` | Download spaCy language model.                                                                                |
+| `create_kb`      | Creates KB utilizing SQLite database with Wiki content.                                                       |
+| `delete_db`      | Deletes SQLite database generated in step parse_wiki_dumps with data parsed from Wikidata and Wikipedia dump. |
+| `clean`          | Delete all generated artifacts except for SQLite database.                                                    |
 
 ### ⏭ Workflows
 
-The following workflows are defined by the project. They
-can be executed using [`spacy project run [name]`](https://spacy.io/api/cli#project-run)
-and will run the specified commands in order. Commands are only re-run if their
-inputs have changed.
+The following workflows are defined by the project. They can be executed using
+[`spacy project run [name]`](https://spacy.io/api/cli#project-run) and will run
+the specified commands in order. Commands are only re-run if their inputs have
+changed.
 
-| Workflow | Steps |
-| --- | --- |
-| `all` | `parse` &rarr; `download_model` &rarr; `create_kb` |
+| Workflow | Steps                                              |
+| -------- | -------------------------------------------------- |
+| `all`    | `parse` &rarr; `download_model` &rarr; `create_kb` |
 
 ### 🗂 Assets
 
-The following assets are defined by the project. They can
-be fetched by running [`spacy project assets`](https://spacy.io/api/cli#project-assets)
-in the project directory.
+The following assets are defined by the project. They can be fetched by running
+[`spacy project assets`](https://spacy.io/api/cli#project-assets) in the project
+directory.
 
-| File | Source | Description |
-| --- | --- | --- |
-| `assets/wikidata_entity_dump.json.bz2` | URL | Wikidata entity dump. Download can take a long time! |
-| `assets/wikipedia_dump.xml.bz2` | URL | Wikipedia dump. Download can take a long time! |
-| `assets/wikidata_entity_dump_filtered.json.bz2` | URL | Filtered Wikidata entity dump for demo purposes (English only). |
-| `assets/wikipedia_dump_filtered.xml.bz2` | URL | Filtered Wikipedia dump for demo purposes (English only). |
+| File                                            | Source | Description                                                     |
+| ----------------------------------------------- | ------ | --------------------------------------------------------------- |
+| `assets/wikidata_entity_dump.json.bz2`          | URL    | Wikidata entity dump. Download can take a long time!            |
+| `assets/wikipedia_dump.xml.bz2`                 | URL    | Wikipedia dump. Download can take a long time!                  |
+| `assets/wikidata_entity_dump_filtered.json.bz2` | URL    | Filtered Wikidata entity dump for demo purposes (English only). |
+| `assets/wikipedia_dump_filtered.xml.bz2`        | URL    | Filtered Wikipedia dump for demo purposes (English only).       |
 
 <!-- SPACY PROJECT: AUTO-GENERATED DOCS END (do not remove) -->
