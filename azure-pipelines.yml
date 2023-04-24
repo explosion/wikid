@@ -31,7 +31,6 @@ jobs:
                 pip install pytest
                 pip install wheel
                 pip install -r requirements.txt
-                spacy download en_core_web_sm
             displayName: 'Install (test) dependencies'
 
           - script: env PYTHONPATH=src python -m pytest

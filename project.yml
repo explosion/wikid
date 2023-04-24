@@ -9,9 +9,9 @@ description: |
   Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 vars:
-  version: "0.0.2"
-  language: "en"
-  vectors_model: "en_core_web_lg"
+  version: "0.1.0"
+  language: "es"
+  vectors_model: "es_core_news_lg"
   filter: "True"
 
 directories: ["assets", "configs", "src", "output"]
