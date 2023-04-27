@@ -3,6 +3,7 @@ trigger:
     branches:
         include:
             - 'main'
+            - 'develop'
 
 variables:
     WASABI_LOG_FRIENDLY: 1
