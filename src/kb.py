@@ -33,18 +33,11 @@ from spacy.kb.candidate import BaseCandidate
 from spacy.tokens import Span, SpanGroup
 from spacy.util import SimpleFrozenList, SimpleFrozenDict
 
-try:
-    from extraction.schemas import MentionEntity
-    from extraction.utils import (
-        establish_db_connection,
-        load_entities,
-    )
-except (ImportError, ModuleNotFoundError):
-    from .extraction.schemas import MentionEntity
-    from .extraction.utils import (
-        establish_db_connection,
-        load_entities,
-    )
+from extraction.schemas import MentionEntity
+from extraction.utils import (
+    establish_db_connection,
+    load_entities,
+)
 
 
 class WikiKBCandidate(BaseCandidate):
