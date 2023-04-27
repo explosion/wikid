@@ -1,4 +1,4 @@
-spacy @ git+https://github.com/explosion/spaCy.git@feature/prototype-el-with-custom-kb
+spacy @ git+https://github.com/explosion/spaCy.git@feat/prototype-el-with-custom-kb
 pyyaml
 tqdm
 prettytable
