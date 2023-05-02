@@ -1,4 +1,4 @@
-spacy @ git+https://github.com/rmitsch/spaCy.git@feature/candidate-generation-by-docs
+spacy @ git+https://github.com/explosion/spaCy.git@feat/prototype-el-with-custom-kb
 pyyaml
 tqdm
 prettytable
