@@ -140,9 +140,9 @@ class WikiKB(KnowledgeBase):
         super().__init__(vocab, entity_vector_length)
 
         self._paths = {
-            "db": db_path.absolute(),
-            "annoy": annoy_path.absolute(),
-            "mentions_candidates": mentions_candidates_path.absolute()
+            "db": Path(db_path).absolute(),
+            "annoy": Path(annoy_path).absolute(),
+            "mentions_candidates": Path(mentions_candidates_path).absolute()
             if mentions_candidates_path
             else None,
         }
@@ -782,7 +782,9 @@ class WikiKB(KnowledgeBase):
             with open(file_path, "rb") as file:
                 meta_info = pickle.load(file)
                 self._language = meta_info[0]
-                self._paths = {k: Path(v) for k, v in meta_info[1].items()}
+                self._paths = {
+                    k: Path(v) if v else None for k, v in meta_info[1].items()
+                }
                 self.entity_vector_length = meta_info[2]
                 self._top_k_aliases = meta_info[3]
                 self._top_k_entities_alias = meta_info[4]
