@@ -48,6 +48,8 @@ def _read_dump(
 def read_entities(
     wikidata_file: Union[str, Path],
     db_conn: sqlite3.Connection,
+    merge_with_en_aliases: bool,
+    store_meta_entities: bool,
     batch_size: int = 10000,
     limit: Optional[int] = None,
     lang: str = "en",
@@ -61,6 +63,10 @@ def read_entities(
     """Reads qid information from wikidata dump.
     wikidata_file (Union[str, Path]): Path of wikidata dump file.
     db_conn (sqlite3.Connection): DB connection.
+    merge_with_en_aliases (bool): Whether to merge aliases in Wikidata in target language with English aliases. If the
+        target language is English, this doesn't have any effect.
+    store_meta_entities (bool): Whether to store meta entities (disambiguations, categories, ...) in database/knowledge
+        base.
     batch_size (int): Batch size for DB commits.
     limit (Optional[int]): Max. number of entities to parse.
     to_print (bool): Whether to print information during the parsing process.
@@ -207,7 +213,11 @@ def read_entities(
                                 # still consider English aliases.
                                 for item in [
                                     *aliases.get(lang, []),
-                                    *aliases.get("en", []),
+                                    *(
+                                        aliases.get("en", [])
+                                        if merge_with_en_aliases
+                                        else []
+                                    ),
                                 ]:
                                     id_to_attrs[unique_id]["aliases"].append(
                                         item["value"]
@@ -217,12 +227,14 @@ def read_entities(
 
             # Save batch.
             if pbar.n % batch_size == 0:
-                _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
+                _write_to_db(
+                    db_conn, title_to_id, id_to_attrs, lang, store_meta_entities
+                )
                 title_to_id = {}
                 id_to_attrs = {}
 
     if pbar.n % batch_size != 0:
-        _write_to_db(db_conn, title_to_id, id_to_attrs, lang)
+        _write_to_db(db_conn, title_to_id, id_to_attrs, lang, store_meta_entities)
 
     logger.info("Synchronizing aliases table.")
     db_conn.cursor().execute(
