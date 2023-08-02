@@ -1,4 +1,5 @@
 """Functionality for creating the knowledge base from downloaded assets and by querying Wikipedia's API."""
+import csv
 import logging
 import os
 from pathlib import Path
@@ -31,23 +32,23 @@ def main(vectors_model: str, language: str):
     count_list: List[int] = []
     vector_list: List[numpy.ndarray] = []  # type: ignore
     entities = wiki.load_entities(language=language)
+    ent_descriptions = {
+        qid: entities[qid].description
+        if entities[qid].description
+        else (
+            entities[qid].article_text[:200]
+            if entities[qid].article_text
+            else entities[qid].name
+        )
+        for qid in entities.keys()
+    }
 
     # Infer vectors for entities' descriptions.
     desc_vectors = [
         doc.vector
         for doc in tqdm.tqdm(
             nlp.pipe(
-                texts=[
-                    entities[qid].description
-                    if entities[qid].description
-                    else (
-                        entities[qid].article_text[:500]
-                        if entities[qid].article_text
-                        else entities[qid].name
-                    )
-                    for qid in entities.keys()
-                ],
-                n_process=-1,
+                texts=[ent_descriptions[qid] for qid in entities.keys()], n_process=-1
             ),
             total=len(entities),
             desc="Inferring entity embeddings",
@@ -85,6 +86,11 @@ def main(vectors_model: str, language: str):
     nlp_dir = output_dir / language / "nlp"
     os.makedirs(nlp_dir, exist_ok=True)
     nlp.to_disk(nlp_dir)
+    # # Write descriptions to file.
+    with open(output_dir / language / "descriptions.csv", "w") as csvfile:
+        csv_writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+        for qid, ent_desc in ent_descriptions.items():
+            csv_writer.writerow([qid, ent_desc])
     logger.info("Successfully constructed knowledge base.")
 
 
