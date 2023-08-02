@@ -62,6 +62,7 @@ commands:
     outputs:
       - "output/${vars.language}/kb"
       - "output/${vars.language}/nlp"
+      - "output/${vars.language}/descriptions.csv"
 
   - name: delete_db
     help: "Deletes SQLite database generated in step parse with data parsed from Wikidata and Wikipedia dump."
