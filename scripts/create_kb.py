@@ -87,7 +87,9 @@ def main(vectors_model: str, language: str):
     os.makedirs(nlp_dir, exist_ok=True)
     nlp.to_disk(nlp_dir)
     # # Write descriptions to file.
-    with open(output_dir / language / "descriptions.csv", "w") as csvfile:
+    with open(
+        output_dir / language / "descriptions.csv", "w", encoding="utf-8"
+    ) as csvfile:
         csv_writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
         for qid, ent_desc in ent_descriptions.items():
             csv_writer.writerow([qid, ent_desc])
