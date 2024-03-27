@@ -19,7 +19,7 @@ def main(
     language (str): Language (e.g. 'en', 'es', ...) to assume for Wiki dump.
     use_filtered_dumps (bool): Whether to use filtered Wiki dumps instead of the full ones.
     entity_limit (Optional[int]): Max. number of entities to parse. Unlimited if None.
-    article_limit (Optional[int]): Max. number of entities to parse. Unlimited if None.
+    article_limit (Optional[int]): Max. number of articles to parse. Unlimited if None.
     alias_limit (Optional[int]): Max. number of entity aliases to parse. Unlimited if None.
     """
 
