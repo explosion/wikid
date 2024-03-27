@@ -17,7 +17,7 @@ except ImportError:
 import wiki
 
 
-def main(vectors_model: str, language: str):
+def main(vectors_model: str, language: str, n_process: int):
     """Create the Knowledge Base in spaCy and write it to file.
     language (str): Language.
     vectors_model (str): Name of model with word vectors to use.
@@ -48,7 +48,7 @@ def main(vectors_model: str, language: str):
         doc.vector
         for doc in tqdm.tqdm(
             nlp.pipe(
-                texts=[ent_descriptions[qid] for qid in entities.keys()], n_process=-1
+                texts=[ent_descriptions[qid] for qid in entities.keys()], n_process=n_process
             ),
             total=len(entities),
             desc="Inferring entity embeddings",

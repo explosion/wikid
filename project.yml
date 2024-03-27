@@ -74,7 +74,5 @@ commands:
   - name: clean
     help: "Delete all generated artifacts except for SQLite database."
     script:
-      - "rm -f output/${vars.language}/kb output/${vars.language}/nlp"
-    deps:
-      - "output/${vars.language}/kb"
-      - "output/${vars.language}/nlp"
+      - "rm -rf output/${vars.language}/kb output/${vars.language}/nlp"
+      - "rm -f output/${vars.language}/descriptions.csv"
