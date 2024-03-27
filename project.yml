@@ -9,7 +9,7 @@ description: |
   Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 vars:
-  version: "0.0.1"
+  version: "0.0.2"
   language: "en"
   vectors_model: "en_core_web_lg"
   filter: "True"
