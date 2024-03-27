@@ -13,6 +13,7 @@ vars:
   language: "en"
   vectors_model: "en_core_web_lg"
   filter: "True"
+  n_process: 1    # set to -1 to set to multiprocessing.cpu_count() automatically
 
 directories: ["assets", "configs", "scripts", "output"]
 
@@ -56,7 +57,7 @@ commands:
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language}"
+      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language} ${vars.n_process}"
     deps:
       - "output/${vars.language}/wiki.sqlite3"
     outputs:
