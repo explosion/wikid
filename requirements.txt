@@ -1,4 +1,4 @@
-spacy<3.7
+spacy<4.0
 pyyaml
 tqdm
 prettytable

@@ -80,7 +80,7 @@ def parse(
     """
 
     _paths = _get_paths(language)
-    msg = "Database exists already. Execute `spacy project run delete_wiki_db` to remove it."
+    msg = "Database exists already. Execute `weasel run delete_db` to remove it."
     assert not os.path.exists(_paths["db"]), msg
 
     db_conn = db_conn if db_conn else establish_db_connection(language)

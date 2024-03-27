@@ -9,10 +9,11 @@ description: |
   Note this repository is still in an experimental stage, so the public API might change at any time. 
 
 vars:
-  version: "0.0.1"
+  version: "0.0.2"
   language: "en"
   vectors_model: "en_core_web_lg"
   filter: "True"
+  n_process: 1    # set to -1 to set to multiprocessing.cpu_count() automatically
 
 directories: ["assets", "configs", "scripts", "output"]
 
@@ -56,7 +57,7 @@ commands:
   - name: create_kb
     help: "Creates KB utilizing SQLite database with Wiki content."
     script:
-      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language}"
+      - "env PYTHONPATH=scripts python ./scripts/create_kb.py ${vars.vectors_model} ${vars.language} ${vars.n_process}"
     deps:
       - "output/${vars.language}/wiki.sqlite3"
     outputs:
@@ -71,10 +72,9 @@ commands:
     deps:
       - "output/${vars.language}/wiki.sqlite3"
 
-  - name: clean
-    help: "Delete all generated artifacts except for SQLite database."
+  - name: delete_kb
+    help: "Delete all KnowledgeBase-related artifacts, but not the SQLite database."
     script:
-      - "rm -f output/${vars.language}/kb output/${vars.language}/nlp"
-    deps:
-      - "output/${vars.language}/kb"
-      - "output/${vars.language}/nlp"
+      - "rm -rf output/${vars.language}/kb"
+      - "rm -rf output/${vars.language}/nlp"
+      - "rm -f output/${vars.language}/descriptions.csv"
